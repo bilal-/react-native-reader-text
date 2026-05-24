@@ -19,3 +19,5 @@ Rules for v1:
 4. The library renders highlights but does not store them.
 
 Consumer apps should persist highlight IDs, paragraph/block IDs, ranges, colors, and optional note metadata.
+
+Highlight colors accept CSS-style hex strings such as `#FFE58A` and `#FFE58ACC`.

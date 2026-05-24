@@ -2,13 +2,10 @@ package com.readertext
 
 import android.graphics.Color
 import android.graphics.Typeface
-import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
 import android.text.style.BackgroundColorSpan
-import android.text.style.ClickableSpan
-import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.TypefaceSpan
@@ -213,7 +210,6 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
 
     applyHighlightSpans(builder)
     applySegmentSpans(builder)
-    applyRangeSpans(builder)
     text = builder
   }
 
@@ -230,7 +226,8 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       parseColor(style.getDynamic("color").asString())?.let { setTextColor(it) }
     }
     if (style.hasKey("lineHeight") && !style.isNull("lineHeight")) {
-      setLineSpacing(0f, style.getDouble("lineHeight").toFloat() / max(textSize, 1f))
+      val lineHeight = style.getDouble("lineHeight").toFloat() * max(maxLineHeightMultiplier, 1f)
+      setLineSpacing(0f, lineHeight / max(textSize, 1f))
     } else {
       setLineSpacing(0f, max(maxLineHeightMultiplier, 1f))
     }
@@ -285,21 +282,6 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       profile.optDouble("baselineOffset")?.let {
         builder.setSpan(DipBaselineShiftSpan(it.toFloat()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       }
-    }
-  }
-
-  private fun applyRangeSpans(builder: SpannableStringBuilder) {
-    normalizedRanges.forEach { range ->
-      builder.setSpan(
-        object : ClickableSpan() {
-          override fun onClick(widget: View) {
-            emitRangePress(range)
-          }
-        },
-        range.getInt("start"),
-        range.getInt("end"),
-        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
-      )
     }
   }
 
@@ -457,9 +439,26 @@ private fun ReadableMap.optString(key: String): String? =
 private fun ReadableMap.optDouble(key: String): Double? =
   if (hasKey(key) && !isNull(key)) getDouble(key) else null
 
-private fun parseColor(value: String?): Int? =
-  try {
-    if (value == null) null else Color.parseColor(value)
+private fun parseColor(value: String?): Int? {
+  if (value == null) return null
+
+  val hex = value.trim().removePrefix("#")
+  if ((hex.length == 6 || hex.length == 8) && hex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+    val int = hex.toLong(16)
+    val hasAlpha = hex.length == 8
+    val redShift = if (hasAlpha) 24 else 16
+    val greenShift = if (hasAlpha) 16 else 8
+    val blueShift = if (hasAlpha) 8 else 0
+    val red = ((int shr redShift) and 0xFF).toInt()
+    val green = ((int shr greenShift) and 0xFF).toInt()
+    val blue = ((int shr blueShift) and 0xFF).toInt()
+    val alpha = if (hasAlpha) (int and 0xFF).toInt() else 255
+    return Color.argb(alpha, red, green, blue)
+  }
+
+  return try {
+    Color.parseColor(value)
   } catch (_: IllegalArgumentException) {
     null
   }
+}

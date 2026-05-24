@@ -113,10 +113,7 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
   }
 
   private func baseAttributes() -> [NSAttributedString.Key: Any] {
-    let fontSize = number(textStyle["fontSize"]) ?? 17
-    let family = textStyle["fontFamily"] as? String
-    let font = family.flatMap { UIFont(name: $0, size: fontSize) } ?? UIFont.systemFont(ofSize: fontSize)
-    var attributes: [NSAttributedString.Key: Any] = [.font: scaledFont(font)]
+    var attributes: [NSAttributedString.Key: Any] = [.font: scaledFont(baseFont())]
 
     if let color = color(textStyle["color"]) {
       attributes[.foregroundColor] = color
@@ -138,12 +135,14 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
       style.baseWritingDirection = .natural
       textView.textAlignment = .natural
     }
+    let lineHeightMultiplier = max(CGFloat(maxLineHeightMultiplier.doubleValue), 1)
     if let lineHeight = number(textStyle["lineHeight"]) {
+      let lineHeight = lineHeight * lineHeightMultiplier
       style.minimumLineHeight = lineHeight
       style.maximumLineHeight = lineHeight
-    } else if maxLineHeightMultiplier.doubleValue > 1 {
+    } else if lineHeightMultiplier > 1 {
       let fontSize = (attributed.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)?.pointSize ?? 17
-      let lineHeight = fontSize * CGFloat(maxLineHeightMultiplier.doubleValue)
+      let lineHeight = fontSize * lineHeightMultiplier
       style.minimumLineHeight = lineHeight
       style.maximumLineHeight = lineHeight
     }
@@ -165,8 +164,7 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
     for segment in segments where validRange(segment, length: attributed.length) {
       let range = nsRange(segment)
       let profile = typographyProfile(segment)
-      var currentFont = attributed.attribute(.font, at: range.location, effectiveRange: nil) as? UIFont
-        ?? UIFont.systemFont(ofSize: 17)
+      var currentFont = baseFont()
 
       if let fontSize = number(profile["fontSize"]) {
         currentFont = currentFont.withSize(fontSize)
@@ -194,12 +192,10 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
     return typography[lang] ?? [:]
   }
 
-  private func writingDirection() -> NSWritingDirection {
-    switch baseDirection {
-    case "ltr": return .leftToRight
-    case "rtl": return .rightToLeft
-    default: return .natural
-    }
+  private func baseFont() -> UIFont {
+    let fontSize = number(textStyle["fontSize"]) ?? 17
+    let family = textStyle["fontFamily"] as? String
+    return family.flatMap { UIFont(name: $0, size: fontSize) } ?? UIFont.systemFont(ofSize: fontSize)
   }
 
   private func scaledFont(_ font: UIFont) -> UIFont {
@@ -274,51 +270,6 @@ final class ReaderUITextView: UITextView {
     builder.insertChild(UIMenu(title: "", options: .displayInline, children: actions), atStartOfMenu: .edit)
   }
 
-  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-    if Self.index(for: action) != nil {
-      return selectedRange.length > 0
-    }
-    if action == #selector(copy(_:)) {
-      return super.canPerformAction(action, withSender: sender)
-    }
-    return super.canPerformAction(action, withSender: sender)
-  }
-
-  @objc func readerTextMenuAction0(_ sender: Any?) { owner?.emitMenuAction(index: 0) }
-  @objc func readerTextMenuAction1(_ sender: Any?) { owner?.emitMenuAction(index: 1) }
-  @objc func readerTextMenuAction2(_ sender: Any?) { owner?.emitMenuAction(index: 2) }
-  @objc func readerTextMenuAction3(_ sender: Any?) { owner?.emitMenuAction(index: 3) }
-  @objc func readerTextMenuAction4(_ sender: Any?) { owner?.emitMenuAction(index: 4) }
-  @objc func readerTextMenuAction5(_ sender: Any?) { owner?.emitMenuAction(index: 5) }
-  @objc func readerTextMenuAction6(_ sender: Any?) { owner?.emitMenuAction(index: 6) }
-  @objc func readerTextMenuAction7(_ sender: Any?) { owner?.emitMenuAction(index: 7) }
-
-  static func selector(for index: Int) -> Selector {
-    switch index {
-    case 0: return #selector(readerTextMenuAction0(_:))
-    case 1: return #selector(readerTextMenuAction1(_:))
-    case 2: return #selector(readerTextMenuAction2(_:))
-    case 3: return #selector(readerTextMenuAction3(_:))
-    case 4: return #selector(readerTextMenuAction4(_:))
-    case 5: return #selector(readerTextMenuAction5(_:))
-    case 6: return #selector(readerTextMenuAction6(_:))
-    default: return #selector(readerTextMenuAction7(_:))
-    }
-  }
-
-  static func index(for selector: Selector) -> Int? {
-    switch selector {
-    case #selector(readerTextMenuAction0(_:)): return 0
-    case #selector(readerTextMenuAction1(_:)): return 1
-    case #selector(readerTextMenuAction2(_:)): return 2
-    case #selector(readerTextMenuAction3(_:)): return 3
-    case #selector(readerTextMenuAction4(_:)): return 4
-    case #selector(readerTextMenuAction5(_:)): return 5
-    case #selector(readerTextMenuAction6(_:)): return 6
-    case #selector(readerTextMenuAction7(_:)): return 7
-    default: return nil
-    }
-  }
 }
 
 private func validRange(_ dictionary: [String: Any], length: Int) -> Bool {
@@ -346,9 +297,12 @@ private func color(_ value: Any?) -> UIColor? {
   if hex.hasPrefix("#") { hex.removeFirst() }
   guard hex.count == 6 || hex.count == 8, let int = UInt64(hex, radix: 16) else { return nil }
   let hasAlpha = hex.count == 8
-  let alpha = hasAlpha ? CGFloat((int & 0xFF000000) >> 24) / 255 : 1
-  let red = CGFloat((int & 0xFF0000) >> 16) / 255
-  let green = CGFloat((int & 0x00FF00) >> 8) / 255
-  let blue = CGFloat(int & 0x0000FF) / 255
+  let redShift = hasAlpha ? 24 : 16
+  let greenShift = hasAlpha ? 16 : 8
+  let blueShift = hasAlpha ? 8 : 0
+  let red = CGFloat((int >> redShift) & 0xFF) / 255
+  let green = CGFloat((int >> greenShift) & 0xFF) / 255
+  let blue = CGFloat((int >> blueShift) & 0xFF) / 255
+  let alpha = hasAlpha ? CGFloat(int & 0xFF) / 255 : 1
   return UIColor(red: red, green: green, blue: blue, alpha: alpha)
 }

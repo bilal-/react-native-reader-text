@@ -117,7 +117,7 @@ export default function App() {
                 ar: { fontScale: 1.15, lineHeightMultiplier: 1.65 },
                 ur: { fontScale: 1.25, lineHeightMultiplier: 1.9, baselineOffset: -1 },
               }}
-              textStyle={styles.reader}
+              textStyle={styles.multilingualReader}
               onMenuAction={(event) => handleMenuAction('multilingual', event)}
             />
           </View>
@@ -181,6 +181,11 @@ const styles = StyleSheet.create({
   reader: {
     fontSize: 18,
     lineHeight: 30,
+    color: '#202420',
+  },
+  multilingualReader: {
+    fontSize: 18,
+    lineHeight: 22,
     color: '#202420',
   },
 });

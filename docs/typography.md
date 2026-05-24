@@ -20,3 +20,5 @@
 The library relies on native bidi behavior. Do not reverse strings manually. Use `baseDirection="auto"` unless a paragraph has a known explicit direction.
 
 Different scripts and fonts can need different scale, line height, and baseline tuning. The defaults should be treated as a starting point, not a guarantee of pixel parity.
+
+`lineHeightMultiplier` is applied at paragraph level using the largest multiplier from the rendered segments. If `textStyle.lineHeight` is set, that value is treated as the base line height and multiplied. Without an explicit `lineHeight`, the native font size is used as the base.

@@ -110,6 +110,8 @@ The library adds app-provided items to the native selection menu and reports wha
 
 Highlights are logical UTF-16 ranges into the rendered text.
 
+Highlight colors accept CSS-style hex strings such as `#FFE58A` and `#FFE58ACC`.
+
 ```tsx
 <ReaderText
   text={paragraph.text}
@@ -175,6 +177,8 @@ Use `segments` when one paragraph needs per-language typography. Ranges and high
 
 If both `text` and `segments` are provided, `segments` take precedence.
 
+`lineHeightMultiplier` is applied at paragraph level using the largest multiplier from the rendered segments. If `textStyle.lineHeight` is set, that line height is treated as the base and multiplied.
+
 ## Many Paragraphs
 
 Render documents as paragraphs or blocks, not as one giant text view.
@@ -205,6 +209,10 @@ Avoid this for long documents:
 ## Platform Notes
 
 Menu appearance, selection handles, default copy behavior, and custom menu ordering differ between iOS and Android.
+
+Custom selection menu items are available on Android and on iOS 16 and later. On iOS 13-15, the default selection menu may appear without app-provided actions.
+
+`onSelection` can fire repeatedly while a user drags selection handles. Debounce expensive app work if needed.
 
 Highlight rendering may not be pixel-identical across platforms.
 

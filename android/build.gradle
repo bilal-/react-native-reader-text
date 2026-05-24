@@ -1,0 +1,32 @@
+buildscript {
+  ext.kotlin_version = "1.9.24"
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath("com.android.tools.build:gradle:8.7.3")
+    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+  }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+
+android {
+  namespace "com.readertext"
+  compileSdkVersion 35
+
+  defaultConfig {
+    minSdkVersion 23
+  }
+}
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+}

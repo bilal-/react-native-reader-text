@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "ReaderText Example",
+    "slug": "reader-text-example",
+    "scheme": "readertextexample",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "newArchEnabled": false,
+    "ios": {
+      "bundleIdentifier": "com.readertext.example"
+    },
+    "android": {
+      "package": "com.readertext.example"
+    }
+  }
+}

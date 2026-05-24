@@ -1,5 +1,10 @@
-
-# Beads / Dolt files (added by bd init)
-.dolt/
-*.db
-.beads-credential-key
+node_modules/
+lib/
+coverage/
+android/build/
+android/.gradle/
+ios/Pods/
+example/node_modules/
+example/.expo/
+example/ios/
+example/android/

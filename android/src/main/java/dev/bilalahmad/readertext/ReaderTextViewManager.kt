@@ -14,7 +14,6 @@ import android.text.style.ClickableSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.ReplacementSpan
-import android.text.style.TypefaceSpan
 import android.util.TypedValue
 import android.view.ActionMode
 import android.view.Gravity
@@ -28,6 +27,8 @@ import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
+import com.facebook.react.common.ReactConstants
+import com.facebook.react.common.assets.ReactFontManager
 import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
@@ -261,7 +262,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       setLineSpacing(0f, max(maxLineHeightMultiplier, 1f))
     }
     if (style.hasKey("fontFamily") && !style.isNull("fontFamily")) {
-      typeface = Typeface.create(style.getString("fontFamily"), Typeface.NORMAL)
+      typeface = resolveTypeface(style.getString("fontFamily"), Typeface.NORMAL, ReactConstants.UNSET)
     }
     if (style.hasKey("textAlign") && !style.isNull("textAlign")) {
       gravity = when (style.getString("textAlign")) {
@@ -327,7 +328,12 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
         builder.setSpan(RelativeSizeSpan(it.toFloat()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       }
       profile.optString("fontFamily")?.let {
-        builder.setSpan(TypefaceSpan(it), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        builder.setSpan(
+          ReaderTypefaceSpan(resolveTypeface(it, Typeface.NORMAL, ReactConstants.UNSET)),
+          start,
+          end,
+          Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
       }
       profile.optDouble("baselineOffset")?.let {
         builder.setSpan(DipBaselineShiftSpan(it.toFloat()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -503,7 +509,8 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     val textLayout = layout ?: return null
     val x = event.x - totalPaddingLeft + scrollX
     val y = event.y - totalPaddingTop + scrollY
-    val slop = 12f * resources.displayMetrics.density
+    val horizontalSlop = 12f * resources.displayMetrics.density
+    val verticalSlop = 36f * resources.displayMetrics.density
 
     return normalizedRanges
       .filter { it.optString("presentation") == "marker" }
@@ -513,14 +520,14 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
         if (start < 0 || end <= start || end > readerText.length) return@firstOrNull false
 
         val line = textLayout.getLineForOffset(start)
-        val lineTop = textLayout.getLineTop(line).toFloat() - slop
-        val lineBottom = textLayout.getLineBottom(line).toFloat() + slop
+        val lineTop = textLayout.getLineTop(line).toFloat() - verticalSlop
+        val lineBottom = textLayout.getLineBottom(line).toFloat() + verticalSlop
         if (y < lineTop || y > lineBottom) return@firstOrNull false
 
         val startX = textLayout.getPrimaryHorizontal(start)
         val endX = textLayout.getPrimaryHorizontal(end)
-        val left = minOf(startX, endX) - slop
-        val right = maxOf(startX, endX) + slop
+        val left = minOf(startX, endX) - horizontalSlop
+        val right = maxOf(startX, endX) + horizontalSlop
         x >= left && x <= right
       }
   }
@@ -529,6 +536,26 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     (context as ReactContext)
       .getJSModule(RCTEventEmitter::class.java)
       .receiveEvent(id, name, payload)
+  }
+
+  private fun resolveTypeface(fontFamily: String?, style: Int, weight: Int): Typeface {
+    if (fontFamily.isNullOrBlank()) return Typeface.defaultFromStyle(style)
+    return ReactFontManager.getInstance().getTypeface(fontFamily, style, weight, context.assets)
+  }
+}
+
+private class ReaderTypefaceSpan(private val resolvedTypeface: Typeface) : MetricAffectingSpan() {
+  override fun updateDrawState(tp: TextPaint) {
+    apply(tp)
+  }
+
+  override fun updateMeasureState(tp: TextPaint) {
+    apply(tp)
+  }
+
+  private fun apply(paint: Paint) {
+    paint.typeface = resolvedTypeface
+    paint.isSubpixelText = true
   }
 }
 

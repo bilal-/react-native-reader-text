@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 import { NativeReaderTextView } from './NativeReaderTextView';
 import type { ReaderTextProps } from './types';
@@ -52,9 +52,11 @@ export function ReaderText(
     onSelection,
     onMenuAction,
     onRangePress,
+    onContentSizeChange,
   }: ReaderTextProps,
 ) {
   const { width } = useWindowDimensions();
+  const [measuredHeight, setMeasuredHeight] = useState<number | undefined>(undefined);
   const logicalText = useMemo(() => buildLogicalText(text, segments), [text, segments]);
   const normalizedSegments = useMemo(
     () => normalizeSegments(logicalText, segments, typography),
@@ -80,11 +82,14 @@ export function ReaderText(
     () => estimateContentHeight(logicalText, nativeTextStyle, width, paragraphLineHeightMultiplier),
     [logicalText, nativeTextStyle, paragraphLineHeightMultiplier, width],
   );
+  useEffect(() => {
+    setMeasuredHeight(undefined);
+  }, [logicalText, width]);
 
   return (
     <NativeReaderTextView
       testID={testID}
-      style={[styles.base, { minHeight: estimatedMinHeight }, style]}
+      style={[styles.base, { minHeight: measuredHeight ?? estimatedMinHeight }, style]}
       text={logicalText}
       segments={normalizedSegments}
       selectable={selectable}
@@ -103,6 +108,17 @@ export function ReaderText(
           ? (event) => onRangePress(rehydrateRangePress(event.nativeEvent, normalizedRanges))
           : undefined
       }
+      onContentSizeChange={(event) => {
+        const measuredWidth = event.nativeEvent.width;
+        if (measuredWidth < 40 || measuredWidth > width + 8) return;
+        const nextHeight = Math.ceil(event.nativeEvent.height);
+        const maximumReasonableHeight = Math.max(estimatedMinHeight * 2, estimatedMinHeight + 96);
+        if (nextHeight > maximumReasonableHeight) return;
+        setMeasuredHeight((current) => (
+          nextHeight > 0 && Math.abs((current ?? 0) - nextHeight) > 1 ? nextHeight : current
+        ));
+        onContentSizeChange?.(event.nativeEvent);
+      }}
     />
   );
 }

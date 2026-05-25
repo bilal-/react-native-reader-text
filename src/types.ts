@@ -92,6 +92,7 @@ export type ReaderTextProps = {
   onSelection?: (selection: ReaderTextSelection) => void;
   onMenuAction?: (event: ReaderTextMenuActionEvent) => void;
   onRangePress?: (range: ReaderTextRange) => void;
+  onContentSizeChange?: (size: { width: number; height: number }) => void;
 };
 
 export type NativeReaderTextEvent<T> = {

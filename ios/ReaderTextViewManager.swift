@@ -7,6 +7,7 @@ public protocol ReaderTextViewEventDelegate: AnyObject {
   func readerTextView(_ view: ReaderTextView, didSelect payload: [String: Any])
   func readerTextView(_ view: ReaderTextView, didTriggerMenuAction payload: [String: Any])
   func readerTextView(_ view: ReaderTextView, didPressRange payload: [String: Any])
+  func readerTextView(_ view: ReaderTextView, didChangeContentSize payload: [String: Any])
 }
 
 @objc(ReaderTextViewManager)
@@ -37,10 +38,12 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   @objc public var onSelection: RCTDirectEventBlock?
   @objc public var onMenuAction: RCTDirectEventBlock?
   @objc public var onRangePress: RCTDirectEventBlock?
+  @objc public var onContentSizeChange: RCTDirectEventBlock?
   @objc public weak var eventDelegate: ReaderTextViewEventDelegate?
 
   fileprivate let textView = ReaderUITextView()
   private var normalizedRanges: [[String: Any]] = []
+  private var lastReportedContentSize: CGSize = .zero
 
   public override init(frame: CGRect) {
     super.init(frame: frame)
@@ -55,6 +58,7 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   public override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
+    reportContentSizeIfNeeded()
   }
 
   fileprivate func emitMenuAction(index: Int) {
@@ -130,6 +134,31 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     textView.isSelectable = selectable
     textView.accessibilityLabel = text
     textView.menuItemCount = menuItems.count
+    setNeedsLayout()
+    DispatchQueue.main.async { [weak self] in
+      self?.reportContentSizeIfNeeded()
+    }
+  }
+
+  private func reportContentSizeIfNeeded() {
+    let targetWidth = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
+    guard targetWidth > 0 else { return }
+    let fittingSize = textView.sizeThatFits(CGSize(width: targetWidth, height: CGFloat.greatestFiniteMagnitude))
+    let width = ceil(targetWidth)
+    let height = ceil(fittingSize.height)
+    guard height > 0 else { return }
+    let nextSize = CGSize(width: width, height: height)
+    guard abs(nextSize.width - lastReportedContentSize.width) > 0.5 ||
+          abs(nextSize.height - lastReportedContentSize.height) > 0.5 else {
+      return
+    }
+    lastReportedContentSize = nextSize
+    let payload: [String: Any] = [
+      "width": width,
+      "height": height,
+    ]
+    onContentSizeChange?(payload)
+    eventDelegate?.readerTextView(self, didChangeContentSize: payload)
   }
 
   private func baseAttributes() -> [NSAttributedString.Key: Any] {

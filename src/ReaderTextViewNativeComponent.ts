@@ -94,6 +94,11 @@ export type NativeRangePressEvent = Readonly<{
   type?: string;
 }>;
 
+export type NativeContentSizeChangeEvent = Readonly<{
+  width: Double;
+  height: Double;
+}>;
+
 export interface NativeProps extends ViewProps {
   text: string;
   segments?: ReadonlyArray<Segment>;
@@ -109,6 +114,7 @@ export interface NativeProps extends ViewProps {
   onSelection?: DirectEventHandler<NativeSelectionEvent>;
   onMenuAction?: DirectEventHandler<NativeMenuActionEvent>;
   onRangePress?: DirectEventHandler<NativeRangePressEvent>;
+  onContentSizeChange?: DirectEventHandler<NativeContentSizeChangeEvent>;
 }
 
 export default codegenNativeComponent<NativeProps>(

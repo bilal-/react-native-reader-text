@@ -273,6 +273,19 @@ static NSDictionary *RCTReaderTextStyleDictionary(const ReaderTextViewTextStyleS
   eventEmitter->onRangePress(event);
 }
 
+- (void)readerTextView:(ReaderTextView *)view didChangeContentSize:(NSDictionary<NSString *,id> *)payload
+{
+  if (!_eventEmitter) {
+    return;
+  }
+  auto eventEmitter = std::static_pointer_cast<const ReaderTextViewEventEmitter>(_eventEmitter);
+  ReaderTextViewEventEmitter::OnContentSizeChange event = {
+    .width = [payload[@"width"] doubleValue],
+    .height = [payload[@"height"] doubleValue],
+  };
+  eventEmitter->onContentSizeChange(event);
+}
+
 @end
 
 Class<RCTComponentViewProtocol> ReaderTextComponentViewCls(void)

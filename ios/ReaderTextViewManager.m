@@ -16,5 +16,6 @@ RCT_EXPORT_VIEW_PROPERTY(allowFontScaling, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(onSelection, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onMenuAction, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onRangePress, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onContentSizeChange, RCTDirectEventBlock)
 
 @end

@@ -8,7 +8,9 @@ import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
+import android.text.method.LinkMovementMethod
 import android.text.style.BackgroundColorSpan
+import android.text.style.ClickableSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.ReplacementSpan
@@ -105,14 +107,15 @@ class ReaderTextViewManager : SimpleViewManager<ReaderTextView>(),
     view.allowReaderFontScaling = allowFontScaling
   }
 
-	  override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> =
-	    MapBuilder.builder<String, Any>()
-	      .put("onSelection", MapBuilder.of("registrationName", "onSelection"))
-	      .put("onMenuAction", MapBuilder.of("registrationName", "onMenuAction"))
-	      .put("onRangePress", MapBuilder.of("registrationName", "onRangePress"))
-	      .build()
-	      .toMutableMap()
-	}
+  override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> =
+    MapBuilder.builder<String, Any>()
+      .put("onSelection", MapBuilder.of("registrationName", "onSelection"))
+      .put("onMenuAction", MapBuilder.of("registrationName", "onMenuAction"))
+      .put("onRangePress", MapBuilder.of("registrationName", "onRangePress"))
+      .put("onContentSizeChange", MapBuilder.of("registrationName", "onContentSizeChange"))
+      .build()
+      .toMutableMap()
+}
 
 class ReaderTextView(context: ThemedReactContext) : TextView(context) {
   var readerText: String = ""
@@ -185,9 +188,12 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     }
 
   private var normalizedRanges: List<ReadableMap> = emptyList()
+  private var lastContentWidth = -1
+  private var lastContentHeight = -1
 
   init {
     includeFontPadding = true
+    isClickable = true
     setTextIsSelectable(true)
     gravity = Gravity.START
     applyDirection()
@@ -204,17 +210,22 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
   override fun onTouchEvent(event: MotionEvent): Boolean {
     val handled = super.onTouchEvent(event)
     if (event.action == MotionEvent.ACTION_UP && normalizedRanges.isNotEmpty()) {
-      val offset = offsetForTouch(event)
-      val range = normalizedRanges.firstOrNull {
+      val range = markerRangeForTouch(event) ?: normalizedRanges.firstOrNull {
         val start = it.getInt("start")
         val end = it.getInt("end")
+        val offset = offsetForTouch(event)
         offset >= start && offset < end
       }
-      if (range != null && selectionStart == selectionEnd) {
+      if (range != null) {
         emitRangePress(range)
       }
     }
     return handled
+  }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    super.onLayout(changed, left, top, right, bottom)
+    reportContentSizeIfNeeded()
   }
 
   private fun rebuildText() {
@@ -224,7 +235,11 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     applyHighlightSpans(builder)
     applySegmentSpans(builder)
     applyMarkerSpans(builder)
+    applyRangeClickSpans(builder)
     text = builder
+    movementMethod = LinkMovementMethod.getInstance()
+    highlightColor = Color.TRANSPARENT
+    post { reportContentSizeIfNeeded() }
   }
 
   private fun applyTextStyle() {
@@ -255,6 +270,27 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
         else -> Gravity.START
       }
     }
+    post { reportContentSizeIfNeeded() }
+  }
+
+  private fun reportContentSizeIfNeeded() {
+    val textLayout = layout ?: return
+    if (textLayout.lineCount <= 0) return
+    val contentWidth = max(width - compoundPaddingLeft - compoundPaddingRight, 0)
+    if (contentWidth < 40) return
+    val contentHeight = textLayout.getLineBottom(textLayout.lineCount - 1) + compoundPaddingTop + compoundPaddingBottom
+    if (contentWidth == lastContentWidth && contentHeight == lastContentHeight) return
+    lastContentWidth = contentWidth
+    lastContentHeight = contentHeight
+
+    val density = resources.displayMetrics.density.toDouble()
+    val event = Arguments.createMap().apply {
+      putDouble("width", contentWidth.toDouble() / density)
+      putDouble("height", contentHeight.toDouble() / density)
+    }
+    (context as? ReactContext)
+      ?.getJSModule(RCTEventEmitter::class.java)
+      ?.receiveEvent(id, "onContentSizeChange", event)
   }
 
   private fun applyDirection() {
@@ -315,6 +351,27 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
           Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
         )
       }
+  }
+
+  private fun applyRangeClickSpans(builder: SpannableStringBuilder) {
+    normalizedRanges.forEach { range ->
+      val start = range.getInt("start")
+      val end = range.getInt("end")
+      builder.setSpan(
+        object : ClickableSpan() {
+          override fun onClick(widget: View) {
+            emitRangePress(range)
+          }
+
+          override fun updateDrawState(ds: TextPaint) {
+            ds.isUnderlineText = false
+          }
+        },
+        start,
+        end,
+        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+      )
+    }
   }
 
   private fun segmentTypography(segment: ReadableMap): ReadableMap {
@@ -440,6 +497,32 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     val y = event.y.toInt() - totalPaddingTop + scrollY
     val line = layout?.getLineForVertical(y) ?: return -1
     return layout?.getOffsetForHorizontal(line, x.toFloat()) ?: -1
+  }
+
+  private fun markerRangeForTouch(event: MotionEvent): ReadableMap? {
+    val textLayout = layout ?: return null
+    val x = event.x - totalPaddingLeft + scrollX
+    val y = event.y - totalPaddingTop + scrollY
+    val slop = 12f * resources.displayMetrics.density
+
+    return normalizedRanges
+      .filter { it.optString("presentation") == "marker" }
+      .firstOrNull { range ->
+        val start = range.getInt("start")
+        val end = range.getInt("end")
+        if (start < 0 || end <= start || end > readerText.length) return@firstOrNull false
+
+        val line = textLayout.getLineForOffset(start)
+        val lineTop = textLayout.getLineTop(line).toFloat() - slop
+        val lineBottom = textLayout.getLineBottom(line).toFloat() + slop
+        if (y < lineTop || y > lineBottom) return@firstOrNull false
+
+        val startX = textLayout.getPrimaryHorizontal(start)
+        val endX = textLayout.getPrimaryHorizontal(end)
+        val left = minOf(startX, endX) - slop
+        val right = maxOf(startX, endX) + slop
+        x >= left && x <= right
+      }
   }
 
   private fun sendEvent(name: String, payload: WritableMap) {

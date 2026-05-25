@@ -7,6 +7,9 @@ import {
   normalizeHighlights,
   normalizeRanges,
   normalizeSegments,
+  rehydrateMenuAction,
+  rehydrateRangePress,
+  typographyProfileMap,
 } from '../src/utils';
 
 describe('ReaderText utilities', () => {
@@ -139,11 +142,11 @@ describe('ReaderText utilities', () => {
           { text: 'Read ', lang: 'en' },
           { text: 'النص', lang: 'ar' },
         ],
-        { ar: { fontScale: 1.2 } },
+        [{ lang: 'ar', fontScale: 1.2 }],
       ),
     ).toEqual([
       { text: 'Read ', lang: 'en', start: 0, end: 5, typography: undefined },
-      { text: 'النص', lang: 'ar', start: 5, end: 9, typography: { fontScale: 1.2 } },
+      { text: 'النص', lang: 'ar', start: 5, end: 9, typography: { lang: 'ar', fontScale: 1.2 } },
     ]);
   });
 
@@ -167,5 +170,67 @@ describe('ReaderText utilities', () => {
     ).toBe(1.8);
     expect(maxLineHeightMultiplier([{ text: 'a', start: 0, end: 1, lineHeightMultiplier: 1.6 }])).toBe(1.6);
     expect(maxLineHeightMultiplier([{ text: 'a', start: 0, end: 1 }], 1.2)).toBe(1.2);
+  });
+
+  it('builds a language-keyed typography profile map', () => {
+    expect(
+      typographyProfileMap([
+        { lang: 'en', fontScale: 1 },
+        { lang: 'ur', fontScale: 1.25 },
+      ]),
+    ).toEqual({
+      en: { lang: 'en', fontScale: 1 },
+      ur: { lang: 'ur', fontScale: 1.25 },
+    });
+  });
+
+  it('rehydrates flat native menu events into public nested events', () => {
+    expect(
+      rehydrateMenuAction({
+        id: 'highlight',
+        title: 'Highlight',
+        selectionText: 'selected',
+        selectionStart: 2,
+        selectionEnd: 10,
+        anchorX: 1,
+        anchorY: 2,
+        anchorWidth: 3,
+        anchorHeight: 4,
+      }),
+    ).toEqual({
+      id: 'highlight',
+      title: 'Highlight',
+      selection: { text: 'selected', start: 2, end: 10 },
+      anchor: { x: 1, y: 2, width: 3, height: 4 },
+    });
+  });
+
+  it('rehydrates range presses back to the original range metadata', () => {
+    const original = {
+      id: 'fn-1',
+      start: 4,
+      end: 5,
+      type: 'footnote',
+      metadata: { body: 'Footnote body' },
+    };
+
+    expect(
+      rehydrateRangePress(
+        { id: 'fn-1', start: 4, end: 5, type: 'footnote' },
+        [original],
+      ),
+    ).toBe(original);
+    expect(rehydrateRangePress({ id: 'missing', start: 1, end: 2 }, [])).toEqual({
+      id: 'missing',
+      start: 1,
+      end: 2,
+      type: undefined,
+    });
+    expect(
+      rehydrateRangePress(
+        { id: 'link-1', start: 1, end: 2 },
+        [{ id: 'link-1', start: 1, end: 2, metadata: { href: '#' } }],
+      ),
+    ).toEqual({ id: 'link-1', start: 1, end: 2, metadata: { href: '#' } });
   });
 });

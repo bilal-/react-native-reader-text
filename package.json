@@ -75,6 +75,19 @@
       }
     }
   },
+  "codegenConfig": {
+    "name": "ReaderTextViewSpec",
+    "type": "components",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.readertext"
+    },
+    "ios": {
+      "componentProvider": {
+        "ReaderTextView": "ReaderTextComponentView"
+      }
+    }
+  },
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",

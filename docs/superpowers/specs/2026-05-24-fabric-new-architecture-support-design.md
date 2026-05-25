@@ -2,8 +2,8 @@
 
 **Date:** 2026-05-24
 **Component:** `ReaderTextView` / `ReaderText`
-**Status:** Revised design, ready for implementation. Updated with webBooks
-reader requirements.
+**Status:** Implemented locally on `plan/reader-text-mvp`. Updated with
+webBooks reader requirements.
 
 ## Problem
 
@@ -165,7 +165,7 @@ interface NativeProps extends ViewProps {
   highlights?: ReadonlyArray<Highlight>;
   ranges?: ReadonlyArray<Range>;
   typography?: ReadonlyArray<TypographyProfile>;
-  baseDirection?: WithDefault<'auto' | 'ltr' | 'rtl', 'auto'>;
+  baseDirection?: WithDefault<string, 'auto'>;
   textStyle?: NativeTextStyle;
   allowFontScaling?: WithDefault<boolean, true>;
   maxLineHeightMultiplier?: WithDefault<Double, 1>;
@@ -197,6 +197,11 @@ export default codegenNativeComponent<NativeProps>(
   'ReaderTextView',
 ) as HostComponent<NativeProps>;
 ```
+
+Implementation note: enum-like strings such as `baseDirection` and
+`presentation` are validated by the public TypeScript API, but cross the native
+codegen boundary as strings. This keeps the generated iOS and Android schemas
+simple while preserving the public v1 shape.
 
 `package.json` gains:
 
@@ -277,6 +282,14 @@ export default codegenNativeComponent<NativeProps>(
 - Add focused JS tests for normalization, event rehydration, and metadata
   preservation.
 
+Implemented:
+
+- `src/ReaderTextViewNativeComponent.ts` is the codegen source of truth.
+- `src/NativeReaderTextView.ts` re-exports the generated native component.
+- `ReaderText.tsx` normalizes typed props before rendering and rehydrates flat
+  native events back into the ergonomic public event shapes.
+- `typography` is now `ReaderTextTypographyProfile[]` with required `lang`.
+
 ### 3. iOS
 
 - **Podspec must wire the New Architecture deps.** Globbing the `.mm` is not
@@ -339,6 +352,10 @@ export default codegenNativeComponent<NativeProps>(
   border, text, and baseline in one native text-layout pass. React Native
   overlays are not acceptable for v1 reader footnotes.
 
+Implemented: Android codegen is wired through the React Gradle plugin, and
+`ReaderTextViewManager` implements the generated
+`ReaderTextViewManagerInterface` through `ReaderTextViewManagerDelegate`.
+
 ### 4a. iOS marker rendering
 
 iOS must also render marker ranges natively inside `UITextView` attributed text.
@@ -352,6 +369,11 @@ overlays.
 The iOS implementation must preserve the same logical range contract: the
 visible marker text remains in the string, range offsets stay UTF-16 offsets,
 and `onRangePress` reports the original range identity.
+
+Implemented: iOS hosts the existing Swift `ReaderTextView` inside
+`ReaderTextComponentView`, an `RCTViewComponentView` registered as
+`ReaderTextView`. The Swift view remains the rendering/selection implementation
+for both Paper and Fabric, with an explicit ObjC delegate used by Fabric events.
 
 ### 5. Event payload flattening
 
@@ -400,6 +422,20 @@ Then behavior:
   (`newArchEnabled=false`).
 - Add JS unit tests for event rehydration and metadata preservation.
 - Driven via Maestro + screenshots for end-to-end behavior.
+
+Current build verification:
+
+- `npm run typecheck` succeeds.
+- `npm test -- --runInBand` succeeds.
+- `npm run build` succeeds.
+- `RCT_NEW_ARCH_ENABLED=1 pod install` succeeds in the example app.
+- iOS example build succeeds with New Architecture enabled:
+  `xcodebuild -workspace ReaderTextExample.xcworkspace -scheme ReaderTextExample
+  -configuration Debug -sdk iphonesimulator -destination 'platform=iOS
+  Simulator,name=iPhone 17 Pro' build`.
+- Android example build succeeds with New Architecture enabled:
+  `./gradlew :react-native-reader-text:generateCodegenArtifactsFromSchema` and
+  `./gradlew assembleDebug`.
 
 ## Acceptance criteria
 

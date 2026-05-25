@@ -29,71 +29,79 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
+import com.facebook.react.uimanager.ViewManagerDelegate
 import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.uimanager.events.RCTEventEmitter
+import com.facebook.react.viewmanagers.ReaderTextViewManagerDelegate
+import com.facebook.react.viewmanagers.ReaderTextViewManagerInterface
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 private const val MENU_BASE_ID = 7300
 
-class ReaderTextViewManager : SimpleViewManager<ReaderTextView>() {
+class ReaderTextViewManager : SimpleViewManager<ReaderTextView>(),
+  ReaderTextViewManagerInterface<ReaderTextView> {
+  private val delegate: ViewManagerDelegate<ReaderTextView> = ReaderTextViewManagerDelegate(this)
+
   override fun getName(): String = "ReaderTextView"
+
+  override fun getDelegate(): ViewManagerDelegate<ReaderTextView> = delegate
 
   override fun createViewInstance(reactContext: ThemedReactContext): ReaderTextView =
     ReaderTextView(reactContext)
 
   @ReactProp(name = "text")
-  fun setText(view: ReaderTextView, text: String?) {
+  override fun setText(view: ReaderTextView, text: String?) {
     view.readerText = text.orEmpty()
   }
 
   @ReactProp(name = "segments")
-  fun setSegments(view: ReaderTextView, segments: ReadableArray?) {
+  override fun setSegments(view: ReaderTextView, segments: ReadableArray?) {
     view.segments = segments
   }
 
   @ReactProp(name = "selectable", defaultBoolean = true)
-  fun setSelectable(view: ReaderTextView, selectable: Boolean) {
+  override fun setSelectable(view: ReaderTextView, selectable: Boolean) {
     view.readerSelectable = selectable
   }
 
   @ReactProp(name = "menuItems")
-  fun setMenuItems(view: ReaderTextView, menuItems: ReadableArray?) {
+  override fun setMenuItems(view: ReaderTextView, menuItems: ReadableArray?) {
     view.menuItems = menuItems
   }
 
   @ReactProp(name = "highlights")
-  fun setHighlights(view: ReaderTextView, highlights: ReadableArray?) {
+  override fun setHighlights(view: ReaderTextView, highlights: ReadableArray?) {
     view.highlights = highlights
   }
 
   @ReactProp(name = "ranges")
-  fun setRanges(view: ReaderTextView, ranges: ReadableArray?) {
+  override fun setRanges(view: ReaderTextView, ranges: ReadableArray?) {
     view.ranges = ranges
   }
 
   @ReactProp(name = "typography")
-  fun setTypography(view: ReaderTextView, typography: ReadableMap?) {
+  override fun setTypography(view: ReaderTextView, typography: ReadableArray?) {
     view.typography = typography
   }
 
   @ReactProp(name = "baseDirection")
-  fun setBaseDirection(view: ReaderTextView, baseDirection: String?) {
+  override fun setBaseDirection(view: ReaderTextView, baseDirection: String?) {
     view.baseDirection = baseDirection ?: "auto"
   }
 
   @ReactProp(name = "textStyle")
-  fun setTextStyle(view: ReaderTextView, textStyle: ReadableMap?) {
+  override fun setTextStyle(view: ReaderTextView, textStyle: ReadableMap?) {
     view.textStyle = textStyle
   }
 
-  @ReactProp(name = "maxLineHeightMultiplier", defaultFloat = 1f)
-  fun setMaxLineHeightMultiplier(view: ReaderTextView, multiplier: Float) {
-    view.maxLineHeightMultiplier = multiplier
+  @ReactProp(name = "maxLineHeightMultiplier", defaultDouble = 1.0)
+  override fun setMaxLineHeightMultiplier(view: ReaderTextView, multiplier: Double) {
+    view.maxLineHeightMultiplier = multiplier.toFloat()
   }
 
   @ReactProp(name = "allowFontScaling", defaultBoolean = true)
-  fun setAllowFontScaling(view: ReaderTextView, allowFontScaling: Boolean) {
+  override fun setAllowFontScaling(view: ReaderTextView, allowFontScaling: Boolean) {
     view.allowReaderFontScaling = allowFontScaling
   }
 
@@ -130,7 +138,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       rebuildText()
     }
 
-  var typography: ReadableMap? = null
+  var typography: ReadableArray? = null
     set(value) {
       field = value
       rebuildText()
@@ -313,7 +321,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       return segment.getMap("typography") ?: Arguments.createMap()
     }
     val lang = segment.optString("lang") ?: return Arguments.createMap()
-    return typography?.getMap(lang) ?: Arguments.createMap()
+    return typography?.toMapList()?.firstOrNull { it.optString("lang") == lang } ?: Arguments.createMap()
   }
 
   private fun installSelectionMenu() {
@@ -370,8 +378,15 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     val event = Arguments.createMap()
     event.putString("id", item.optString("id") ?: item.optString("title") ?: "")
     event.putString("title", item.optString("title") ?: item.optString("id") ?: "")
-    event.putMap("selection", selectionMap(start, end))
-    event.putMap("anchor", anchorMap(start, end))
+    val selection = selectionMap(start, end)
+    val anchor = anchorMap(start, end)
+    event.putString("selectionText", selection.getString("text"))
+    event.putInt("selectionStart", selection.getInt("start"))
+    event.putInt("selectionEnd", selection.getInt("end"))
+    event.putDouble("anchorX", anchor.getDouble("x"))
+    event.putDouble("anchorY", anchor.getDouble("y"))
+    event.putDouble("anchorWidth", anchor.getDouble("width"))
+    event.putDouble("anchorHeight", anchor.getDouble("height"))
     sendEvent("onMenuAction", event)
   }
 
@@ -381,9 +396,6 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     event.putInt("start", range.getInt("start"))
     event.putInt("end", range.getInt("end"))
     range.optString("type")?.let { event.putString("type", it) }
-    if (range.hasKey("metadata") && !range.isNull("metadata")) {
-      event.putMap("metadata", range.getMap("metadata"))
-    }
     sendEvent("onRangePress", event)
   }
 

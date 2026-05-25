@@ -8,6 +8,8 @@ import {
   normalizeRanges,
   normalizeSegments,
   maxLineHeightMultiplier,
+  rehydrateMenuAction,
+  rehydrateRangePress,
 } from './utils';
 
 export function ReaderText(
@@ -18,7 +20,7 @@ export function ReaderText(
     menuItems = [],
     highlights,
     ranges,
-    typography = {},
+    typography = [],
     baseDirection = 'auto',
     style,
     textStyle,
@@ -67,8 +69,12 @@ export function ReaderText(
       maxLineHeightMultiplier={paragraphLineHeightMultiplier}
       allowFontScaling={allowFontScaling}
       onSelection={onSelection ? (event) => onSelection(event.nativeEvent) : undefined}
-      onMenuAction={onMenuAction ? (event) => onMenuAction(event.nativeEvent) : undefined}
-      onRangePress={onRangePress ? (event) => onRangePress(event.nativeEvent) : undefined}
+      onMenuAction={onMenuAction ? (event) => onMenuAction(rehydrateMenuAction(event.nativeEvent)) : undefined}
+      onRangePress={
+        onRangePress
+          ? (event) => onRangePress(rehydrateRangePress(event.nativeEvent, normalizedRanges))
+          : undefined
+      }
     />
   );
 }

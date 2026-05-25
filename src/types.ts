@@ -68,6 +68,7 @@ export type ReaderTextMenuActionEvent = {
 };
 
 export type ReaderTextTypographyProfile = {
+  lang: string;
   fontFamily?: string;
   fontScale?: number;
   fontSize?: number;
@@ -82,7 +83,7 @@ export type ReaderTextProps = {
   menuItems?: ReaderTextMenuItem[];
   highlights?: ReaderTextHighlight[];
   ranges?: ReaderTextRange[];
-  typography?: Record<string, ReaderTextTypographyProfile>;
+  typography?: ReaderTextTypographyProfile[];
   baseDirection?: 'auto' | 'ltr' | 'rtl';
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
@@ -95,4 +96,23 @@ export type ReaderTextProps = {
 
 export type NativeReaderTextEvent<T> = {
   nativeEvent: T;
+};
+
+export type NativeReaderTextMenuActionEvent = {
+  id: string;
+  title: string;
+  selectionText: string;
+  selectionStart: number;
+  selectionEnd: number;
+  anchorX: number;
+  anchorY: number;
+  anchorWidth: number;
+  anchorHeight: number;
+};
+
+export type NativeReaderTextRangePressEvent = {
+  id: string;
+  start: number;
+  end: number;
+  type?: string;
 };

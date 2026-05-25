@@ -12,6 +12,13 @@ buildscript {
 
 apply plugin: "com.android.library"
 apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+react {
+  libraryName = "ReaderTextViewSpec"
+  codegenJavaPackageName = "com.readertext"
+  jsRootDir = file("../src")
+}
 
 android {
   namespace "com.readertext"

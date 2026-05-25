@@ -2,6 +2,13 @@ import Foundation
 import React
 import UIKit
 
+@objc(ReaderTextViewEventDelegate)
+public protocol ReaderTextViewEventDelegate: AnyObject {
+  func readerTextView(_ view: ReaderTextView, didSelect payload: [String: Any])
+  func readerTextView(_ view: ReaderTextView, didTriggerMenuAction payload: [String: Any])
+  func readerTextView(_ view: ReaderTextView, didPressRange payload: [String: Any])
+}
+
 @objc(ReaderTextViewManager)
 final class ReaderTextViewManager: RCTViewManager {
   override static func requiresMainQueueSetup() -> Bool {
@@ -15,36 +22,37 @@ final class ReaderTextViewManager: RCTViewManager {
 }
 
 @objc(ReaderTextView)
-final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDelegate {
-  @objc var text: String = "" { didSet { rebuildText() } }
-  @objc var segments: [[String: Any]] = [] { didSet { rebuildText() } }
-  @objc var selectable: Bool = true { didSet { textView.isSelectable = selectable } }
-  @objc var menuItems: [[String: Any]] = [] { didSet { textView.menuItemCount = menuItems.count } }
-  @objc var highlights: [[String: Any]] = [] { didSet { rebuildText() } }
-  @objc var ranges: [[String: Any]] = [] { didSet { rebuildText() } }
-  @objc var typography: [String: [String: Any]] = [:] { didSet { rebuildText() } }
-  @objc var baseDirection: String = "auto" { didSet { rebuildText() } }
-  @objc var textStyle: [String: Any] = [:] { didSet { rebuildText() } }
-  @objc var maxLineHeightMultiplier: NSNumber = 1 { didSet { rebuildText() } }
-  @objc var allowFontScaling: Bool = true { didSet { rebuildText() } }
-  @objc var onSelection: RCTDirectEventBlock?
-  @objc var onMenuAction: RCTDirectEventBlock?
-  @objc var onRangePress: RCTDirectEventBlock?
+public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDelegate {
+  @objc public var text: String = "" { didSet { rebuildText() } }
+  @objc public var segments: [[String: Any]] = [] { didSet { rebuildText() } }
+  @objc public var selectable: Bool = true { didSet { textView.isSelectable = selectable } }
+  @objc public var menuItems: [[String: Any]] = [] { didSet { textView.menuItemCount = menuItems.count } }
+  @objc public var highlights: [[String: Any]] = [] { didSet { rebuildText() } }
+  @objc public var ranges: [[String: Any]] = [] { didSet { rebuildText() } }
+  @objc public var typography: [[String: Any]] = [] { didSet { rebuildText() } }
+  @objc public var baseDirection: String = "auto" { didSet { rebuildText() } }
+  @objc public var textStyle: [String: Any] = [:] { didSet { rebuildText() } }
+  @objc public var maxLineHeightMultiplier: NSNumber = 1 { didSet { rebuildText() } }
+  @objc public var allowFontScaling: Bool = true { didSet { rebuildText() } }
+  @objc public var onSelection: RCTDirectEventBlock?
+  @objc public var onMenuAction: RCTDirectEventBlock?
+  @objc public var onRangePress: RCTDirectEventBlock?
+  @objc public weak var eventDelegate: ReaderTextViewEventDelegate?
 
   fileprivate let textView = ReaderUITextView()
   private var normalizedRanges: [[String: Any]] = []
 
-  override init(frame: CGRect) {
+  public override init(frame: CGRect) {
     super.init(frame: frame)
     setup()
   }
 
-  required init?(coder: NSCoder) {
+  public required init?(coder: NSCoder) {
     super.init(coder: coder)
     setup()
   }
 
-  override func layoutSubviews() {
+  public override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
   }
@@ -56,12 +64,21 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
     let nsText = text as NSString
     guard range.location + range.length <= nsText.length else { return }
     let item = menuItems[index]
-    onMenuAction?([
+    let selection = selectionPayload(range: range)
+    let anchor = anchorPayload(range: range)
+    let payload: [String: Any] = [
       "id": item["id"] as? String ?? item["title"] as? String ?? "",
       "title": item["title"] as? String ?? item["id"] as? String ?? "",
-      "selection": selectionPayload(range: range),
-      "anchor": anchorPayload(range: range),
-    ])
+      "selectionText": selection["text"] ?? "",
+      "selectionStart": selection["start"] ?? 0,
+      "selectionEnd": selection["end"] ?? 0,
+      "anchorX": anchor["x"] ?? 0,
+      "anchorY": anchor["y"] ?? 0,
+      "anchorWidth": anchor["width"] ?? 0,
+      "anchorHeight": anchor["height"] ?? 0,
+    ]
+    onMenuAction?(payload)
+    eventDelegate?.readerTextView(self, didTriggerMenuAction: payload)
   }
 
   fileprivate func menuTitle(at index: Int) -> String {
@@ -70,12 +87,14 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
     return item["title"] as? String ?? item["id"] as? String ?? ""
   }
 
-  func textViewDidChangeSelection(_ textView: UITextView) {
+  public func textViewDidChangeSelection(_ textView: UITextView) {
     let range = textView.selectedRange
     guard range.length > 0 else { return }
     let nsText = text as NSString
     guard range.location + range.length <= nsText.length else { return }
-    onSelection?(selectionPayload(range: range))
+    let payload = selectionPayload(range: range)
+    onSelection?(payload)
+    eventDelegate?.readerTextView(self, didSelect: payload)
   }
 
   private func setup() {
@@ -209,7 +228,7 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
       return profile
     }
     guard let lang = segment["lang"] as? String else { return [:] }
-    return typography[lang] ?? [:]
+    return typography.first { $0["lang"] as? String == lang } ?? [:]
   }
 
   private func baseFont() -> UIFont {
@@ -232,7 +251,14 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
       guard let start = $0["start"] as? Int, let end = $0["end"] as? Int else { return false }
       return offset >= start && offset < end
     }) else { return }
-    onRangePress?(range)
+    let payload: [String: Any] = [
+      "id": range["id"] as? String ?? "",
+      "start": range["start"] as? Int ?? 0,
+      "end": range["end"] as? Int ?? 0,
+      "type": range["type"] as? String ?? "",
+    ]
+    onRangePress?(payload)
+    eventDelegate?.readerTextView(self, didPressRange: payload)
   }
 
   private func characterOffset(at point: CGPoint) -> Int? {

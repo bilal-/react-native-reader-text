@@ -125,11 +125,11 @@ export default function App() {
               selectable
               baseDirection="auto"
               menuItems={menuItems}
-              typography={{
-                en: { fontScale: 1, lineHeightMultiplier: 1.4 },
-                ar: { fontScale: 1.15, lineHeightMultiplier: 1.65 },
-                ur: { fontScale: 1.25, lineHeightMultiplier: 1.9, baselineOffset: -1 },
-              }}
+              typography={[
+                { lang: 'en', fontScale: 1, lineHeightMultiplier: 1.4 },
+                { lang: 'ar', fontScale: 1.15, lineHeightMultiplier: 1.65 },
+                { lang: 'ur', fontScale: 1.25, lineHeightMultiplier: 1.9, baselineOffset: -1 },
+              ]}
               textStyle={styles.multilingualReader}
               onMenuAction={(event) => handleMenuAction('multilingual', event)}
             />

@@ -256,7 +256,11 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       parseColor(style.getDynamic("color").asString())?.let { setTextColor(it) }
     }
     if (style.hasKey("lineHeight") && !style.isNull("lineHeight")) {
-      val lineHeight = style.getDouble("lineHeight").toFloat() * max(maxLineHeightMultiplier, 1f)
+      val lineHeight = TypedValue.applyDimension(
+        if (allowReaderFontScaling) TypedValue.COMPLEX_UNIT_SP else TypedValue.COMPLEX_UNIT_DIP,
+        style.getDouble("lineHeight").toFloat(),
+        resources.displayMetrics,
+      )
       setLineSpacing(0f, lineHeight / max(textSize, 1f))
     } else {
       setLineSpacing(0f, max(maxLineHeightMultiplier, 1f))
@@ -266,9 +270,9 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     }
     if (style.hasKey("textAlign") && !style.isNull("textAlign")) {
       gravity = when (style.getString("textAlign")) {
-        "right" -> Gravity.END
+        "right" -> Gravity.RIGHT
         "center" -> Gravity.CENTER_HORIZONTAL
-        else -> Gravity.START
+        else -> Gravity.LEFT
       }
     }
     post { reportContentSizeIfNeeded() }
@@ -299,6 +303,11 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       "ltr" -> View.TEXT_DIRECTION_LTR
       "rtl" -> View.TEXT_DIRECTION_RTL
       else -> View.TEXT_DIRECTION_FIRST_STRONG
+    }
+    layoutDirection = when (baseDirection) {
+      "rtl" -> View.LAYOUT_DIRECTION_RTL
+      "ltr" -> View.LAYOUT_DIRECTION_LTR
+      else -> View.LAYOUT_DIRECTION_LOCALE
     }
     textAlignment = View.TEXT_ALIGNMENT_GRAVITY
   }

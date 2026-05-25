@@ -186,7 +186,6 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     }
     let lineHeightMultiplier = max(CGFloat(maxLineHeightMultiplier.doubleValue), 1)
     if let lineHeight = number(textStyle["lineHeight"]) {
-      let lineHeight = lineHeight * lineHeightMultiplier
       style.minimumLineHeight = lineHeight
       style.maximumLineHeight = lineHeight
     } else if lineHeightMultiplier > 1 {

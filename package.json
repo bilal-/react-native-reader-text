@@ -34,14 +34,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bilalahmad/react-native-reader-text.git"
+    "url": "git+https://github.com/bilal-/react-native-reader-text.git"
   },
-  "author": "Bilal Ahmad",
+  "author": "dev.bilalahmad (Bilal Ahmad)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/bilalahmad/react-native-reader-text/issues"
+    "url": "https://github.com/bilal-/react-native-reader-text/issues"
   },
-  "homepage": "https://github.com/bilalahmad/react-native-reader-text#readme",
+  "homepage": "https://github.com/bilal-/react-native-reader-text#readme",
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
@@ -80,7 +80,7 @@
     "type": "components",
     "jsSrcsDir": "src",
     "android": {
-      "javaPackageName": "com.readertext"
+      "javaPackageName": "dev.bilalahmad.readertext"
     },
     "ios": {
       "componentProvider": {

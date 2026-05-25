@@ -16,12 +16,12 @@ apply plugin: "com.facebook.react"
 
 react {
   libraryName = "ReaderTextViewSpec"
-  codegenJavaPackageName = "com.readertext"
+  codegenJavaPackageName = "dev.bilalahmad.readertext"
   jsRootDir = file("../src")
 }
 
 android {
-  namespace "com.readertext"
+  namespace "dev.bilalahmad.readertext"
   compileSdkVersion 35
 
   defaultConfig {

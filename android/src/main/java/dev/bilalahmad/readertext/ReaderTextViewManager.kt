@@ -1,4 +1,4 @@
-package com.readertext
+package dev.bilalahmad.readertext
 
 import android.graphics.Canvas
 import android.graphics.Color

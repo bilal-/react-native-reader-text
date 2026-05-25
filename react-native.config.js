@@ -2,7 +2,7 @@ module.exports = {
   dependency: {
     platforms: {
       android: {
-        packageImportPath: 'import com.readertext.ReaderTextPackage;',
+        packageImportPath: 'import dev.bilalahmad.readertext.ReaderTextPackage;',
         packageInstance: 'new ReaderTextPackage()',
       },
       ios: {},

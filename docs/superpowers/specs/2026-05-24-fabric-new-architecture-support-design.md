@@ -210,7 +210,7 @@ simple while preserving the public v1 shape.
   "name": "ReaderTextViewSpec",
   "type": "components",
   "jsSrcsDir": "src",
-  "android": { "javaPackageName": "com.readertext" },
+  "android": { "javaPackageName": "dev.bilalahmad.readertext" },
   "ios": {
     "componentProvider": {
       "ReaderTextView": "ReaderTextComponentView"

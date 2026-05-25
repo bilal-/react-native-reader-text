@@ -7,10 +7,10 @@
     "orientation": "portrait",
     "newArchEnabled": false,
     "ios": {
-      "bundleIdentifier": "com.readertext.example"
+      "bundleIdentifier": "dev.bilalahmad.readertext.example"
     },
     "android": {
-      "package": "com.readertext.example"
+      "package": "dev.bilalahmad.readertext.example"
     }
   }
 }

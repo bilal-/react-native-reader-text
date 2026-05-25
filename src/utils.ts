@@ -72,6 +72,7 @@ export function mergeTypographyProfile(
   };
 
   if (segment?.fontFamily !== undefined) merged.fontFamily = segment.fontFamily;
+  if (segment?.color !== undefined) merged.color = segment.color;
   if (segment?.fontScale !== undefined) merged.fontScale = segment.fontScale;
   if (segment?.lineHeightMultiplier !== undefined) {
     merged.lineHeightMultiplier = segment.lineHeightMultiplier;

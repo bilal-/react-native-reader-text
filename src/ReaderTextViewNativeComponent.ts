@@ -13,6 +13,7 @@ type Segment = Readonly<{
   text: string;
   lang?: string;
   fontFamily?: string;
+  color?: string;
   fontScale?: Double;
   baselineOffset?: Double;
   lineHeightMultiplier?: Double;
@@ -55,6 +56,7 @@ type MenuItem = Readonly<{
 type TypographyProfile = Readonly<{
   lang: string;
   fontFamily?: string;
+  color?: string;
   fontScale?: Double;
   fontSize?: Double;
   lineHeightMultiplier?: Double;

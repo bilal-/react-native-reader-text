@@ -8,9 +8,8 @@ import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
-import android.text.method.LinkMovementMethod
 import android.text.style.BackgroundColorSpan
-import android.text.style.ClickableSpan
+import android.text.style.ForegroundColorSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.ReplacementSpan
@@ -193,7 +192,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
   private var lastContentHeight = -1
 
   init {
-    includeFontPadding = true
+    includeFontPadding = false
     isClickable = true
     setTextIsSelectable(true)
     gravity = Gravity.START
@@ -236,9 +235,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     applyHighlightSpans(builder)
     applySegmentSpans(builder)
     applyMarkerSpans(builder)
-    applyRangeClickSpans(builder)
     text = builder
-    movementMethod = LinkMovementMethod.getInstance()
     highlightColor = Color.TRANSPARENT
     post { reportContentSizeIfNeeded() }
   }
@@ -344,6 +341,11 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
           Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
         )
       }
+      profile.optString("color")?.let {
+        parseColor(it)?.let { color ->
+          builder.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+      }
       profile.optDouble("baselineOffset")?.let {
         builder.setSpan(DipBaselineShiftSpan(it.toFloat()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       }
@@ -366,27 +368,6 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
           Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
         )
       }
-  }
-
-  private fun applyRangeClickSpans(builder: SpannableStringBuilder) {
-    normalizedRanges.forEach { range ->
-      val start = range.getInt("start")
-      val end = range.getInt("end")
-      builder.setSpan(
-        object : ClickableSpan() {
-          override fun onClick(widget: View) {
-            emitRangePress(range)
-          }
-
-          override fun updateDrawState(ds: TextPaint) {
-            ds.isUnderlineText = false
-          }
-        },
-        start,
-        end,
-        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-      )
-    }
   }
 
   private fun segmentTypography(segment: ReadableMap): ReadableMap {

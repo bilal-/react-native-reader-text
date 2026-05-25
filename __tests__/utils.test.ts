@@ -97,10 +97,11 @@ describe('ReaderText utilities', () => {
   it('allows all segment typography overrides', () => {
     expect(
       mergeTypographyProfile(
-        { fontFamily: 'System', fontScale: 1, lineHeightMultiplier: 1.4, baselineOffset: 0 },
+        { fontFamily: 'System', color: '#111111', fontScale: 1, lineHeightMultiplier: 1.4, baselineOffset: 0 },
         {
           text: 'text',
           fontFamily: 'Custom',
+          color: '#1A5F4A',
           fontScale: 1.2,
           lineHeightMultiplier: 1.8,
           baselineOffset: 2,
@@ -108,6 +109,7 @@ describe('ReaderText utilities', () => {
       ),
     ).toEqual({
       fontFamily: 'Custom',
+      color: '#1A5F4A',
       fontScale: 1.2,
       lineHeightMultiplier: 1.8,
       baselineOffset: 2,

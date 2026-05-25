@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, useWindowDimensions } from 'react-native';
+import React from 'react';
+import { Dimensions, StyleSheet } from 'react-native';
 import { NativeReaderTextView } from './NativeReaderTextView';
 import type { ReaderTextProps } from './types';
 import {
@@ -36,91 +36,93 @@ function estimateContentHeight(
 }
 
 export function ReaderText(
-  {
-    text,
-    segments,
-    selectable = true,
-    menuItems = [],
-    highlights,
-    ranges,
-    typography = [],
-    baseDirection = 'auto',
-    style,
-    textStyle,
-    allowFontScaling = true,
-    testID,
-    onSelection,
-    onMenuAction,
-    onRangePress,
-    onContentSizeChange,
-  }: ReaderTextProps,
+  props: ReaderTextProps,
 ) {
-  const { width } = useWindowDimensions();
-  const [measuredHeight, setMeasuredHeight] = useState<number | undefined>(undefined);
-  const logicalText = useMemo(() => buildLogicalText(text, segments), [text, segments]);
-  const normalizedSegments = useMemo(
-    () => normalizeSegments(logicalText, segments, typography),
-    [logicalText, segments, typography],
-  );
-  const normalizedHighlights = useMemo(
-    () => normalizeHighlights(highlights, logicalText.length),
-    [highlights, logicalText.length],
-  );
-  const normalizedRanges = useMemo(
-    () => normalizeRanges(ranges, logicalText.length),
-    [ranges, logicalText.length],
-  );
-  const nativeTextStyle = useMemo(
-    () => ({ ...(StyleSheet.flatten(textStyle) ?? {}) }) as Record<string, unknown>,
-    [textStyle],
-  );
-  const paragraphLineHeightMultiplier = useMemo(
-    () => maxLineHeightMultiplier(normalizedSegments),
-    [normalizedSegments],
-  );
-  const estimatedMinHeight = useMemo(
-    () => estimateContentHeight(logicalText, nativeTextStyle, width, paragraphLineHeightMultiplier),
-    [logicalText, nativeTextStyle, paragraphLineHeightMultiplier, width],
-  );
-  useEffect(() => {
-    setMeasuredHeight(undefined);
-  }, [logicalText, width]);
+  return <ReaderTextMeasured {...props} />;
+}
 
-  return (
-    <NativeReaderTextView
-      testID={testID}
-      style={[styles.base, { minHeight: measuredHeight ?? estimatedMinHeight }, style]}
-      text={logicalText}
-      segments={normalizedSegments}
-      selectable={selectable}
-      menuItems={menuItems}
-      highlights={normalizedHighlights}
-      ranges={normalizedRanges}
-      typography={typography}
-      baseDirection={baseDirection}
-      textStyle={nativeTextStyle}
-      maxLineHeightMultiplier={paragraphLineHeightMultiplier}
-      allowFontScaling={allowFontScaling}
-      onSelection={onSelection ? (event) => onSelection(event.nativeEvent) : undefined}
-      onMenuAction={onMenuAction ? (event) => onMenuAction(rehydrateMenuAction(event.nativeEvent)) : undefined}
-      onRangePress={
-        onRangePress
-          ? (event) => onRangePress(rehydrateRangePress(event.nativeEvent, normalizedRanges))
-          : undefined
-      }
-      onContentSizeChange={(event) => {
-        const measuredWidth = event.nativeEvent.width;
-        if (measuredWidth < 40 || measuredWidth > width + 8) return;
-        const nextHeight = Math.ceil(event.nativeEvent.height);
-        const maximumReasonableHeight = Math.max(estimatedMinHeight * 2, estimatedMinHeight + 96);
-        if (nextHeight > maximumReasonableHeight) return;
-        setMeasuredHeight((current) => (
-          nextHeight > 0 && Math.abs((current ?? 0) - nextHeight) > 1 ? nextHeight : current
-        ));
-        onContentSizeChange?.(event.nativeEvent);
-      }}
-    />
-  );
+type ReaderTextMeasuredState = {
+  measuredHeight?: number;
+  measuredText?: string;
+  measuredWidth?: number;
+};
+
+class ReaderTextMeasured extends React.PureComponent<ReaderTextProps, ReaderTextMeasuredState> {
+  state: ReaderTextMeasuredState = {};
+
+  render() {
+    const {
+      text,
+      segments,
+      selectable = true,
+      menuItems = [],
+      highlights,
+      ranges,
+      typography = [],
+      baseDirection = 'auto',
+      style,
+      textStyle,
+      allowFontScaling = true,
+      testID,
+      onSelection,
+      onMenuAction,
+      onRangePress,
+      onContentSizeChange,
+    } = this.props;
+    const width = Dimensions.get('window').width;
+    const logicalText = buildLogicalText(text, segments);
+    const normalizedSegments = normalizeSegments(logicalText, segments, typography);
+    const normalizedHighlights = normalizeHighlights(highlights, logicalText.length);
+    const normalizedRanges = normalizeRanges(ranges, logicalText.length);
+    const nativeTextStyle = ({ ...(StyleSheet.flatten(textStyle) ?? {}) }) as Record<string, unknown>;
+    const paragraphLineHeightMultiplier = maxLineHeightMultiplier(normalizedSegments);
+    const estimatedMinHeight = estimateContentHeight(logicalText, nativeTextStyle, width, paragraphLineHeightMultiplier);
+    const measuredHeight =
+      this.state.measuredText === logicalText && this.state.measuredWidth === width
+        ? this.state.measuredHeight
+        : undefined;
+
+    return (
+      <NativeReaderTextView
+        testID={testID}
+        style={[styles.base, { minHeight: measuredHeight ?? estimatedMinHeight }, style]}
+        text={logicalText}
+        segments={normalizedSegments}
+        selectable={selectable}
+        menuItems={menuItems}
+        highlights={normalizedHighlights}
+        ranges={normalizedRanges}
+        typography={typography}
+        baseDirection={baseDirection}
+        textStyle={nativeTextStyle}
+        maxLineHeightMultiplier={paragraphLineHeightMultiplier}
+        allowFontScaling={allowFontScaling}
+        onSelection={onSelection ? (event) => onSelection(event.nativeEvent) : undefined}
+        onMenuAction={onMenuAction ? (event) => onMenuAction(rehydrateMenuAction(event.nativeEvent)) : undefined}
+        onRangePress={
+          onRangePress
+            ? (event) => onRangePress(rehydrateRangePress(event.nativeEvent, normalizedRanges))
+            : undefined
+        }
+        onContentSizeChange={(event) => {
+          const measuredWidth = event.nativeEvent.width;
+          if (measuredWidth < 40 || measuredWidth > width + 8) return;
+          const nextHeight = Math.ceil(event.nativeEvent.height);
+          const maximumReasonableHeight = Math.max(estimatedMinHeight * 2, estimatedMinHeight + 96);
+          if (nextHeight > maximumReasonableHeight) return;
+          this.setState((current) => (
+            nextHeight > 0 &&
+            (current.measuredText !== logicalText ||
+              current.measuredWidth !== width ||
+              Math.abs((current.measuredHeight ?? 0) - nextHeight) > 1)
+              ? { measuredHeight: nextHeight, measuredText: logicalText, measuredWidth: width }
+              : null
+          ));
+          onContentSizeChange?.(event.nativeEvent);
+        }}
+      />
+    );
+  }
 }
 
 const styles = StyleSheet.create({

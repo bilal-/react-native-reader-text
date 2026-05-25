@@ -6,6 +6,7 @@ export type ReaderTextSegment = {
   text: string;
   lang?: ReaderTextLanguage;
   fontFamily?: string;
+  color?: string;
   fontScale?: number;
   baselineOffset?: number;
   lineHeightMultiplier?: number;
@@ -70,6 +71,7 @@ export type ReaderTextMenuActionEvent = {
 export type ReaderTextTypographyProfile = {
   lang: string;
   fontFamily?: string;
+  color?: string;
   fontScale?: number;
   fontSize?: number;
   lineHeightMultiplier?: number;

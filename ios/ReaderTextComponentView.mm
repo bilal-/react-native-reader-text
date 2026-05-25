@@ -62,6 +62,9 @@ static NSArray *RCTReaderTextSegmentsArray(const std::vector<ReaderTextViewSegme
     if (!segment.fontFamily.empty()) {
       dict[@"fontFamily"] = @(segment.fontFamily.c_str());
     }
+    if (!segment.color.empty()) {
+      dict[@"color"] = @(segment.color.c_str());
+    }
     if (segment.fontScale != 0) {
       dict[@"fontScale"] = @(segment.fontScale);
     }
@@ -135,6 +138,9 @@ static NSArray *RCTReaderTextTypographyArray(const std::vector<ReaderTextViewTyp
     dict[@"lang"] = @(profile.lang.c_str());
     if (!profile.fontFamily.empty()) {
       dict[@"fontFamily"] = @(profile.fontFamily.c_str());
+    }
+    if (!profile.color.empty()) {
+      dict[@"color"] = @(profile.color.c_str());
     }
     if (profile.fontScale != 0) {
       dict[@"fontScale"] = @(profile.fontScale);

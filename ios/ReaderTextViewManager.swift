@@ -226,6 +226,9 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
       }
       attributed.addAttribute(.font, value: scaledFont(currentFont), range: range)
 
+      if let segmentColor = color(profile["color"]) {
+        attributed.addAttribute(.foregroundColor, value: segmentColor, range: range)
+      }
       if let baselineOffset = number(profile["baselineOffset"]) {
         attributed.addAttribute(.baselineOffset, value: baselineOffset, range: range)
       }

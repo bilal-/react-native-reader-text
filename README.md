@@ -155,6 +155,40 @@ The same range API can represent glossary terms, references, citations, or links
 
 For example, if the visible marker is the final `1`, the range should cover only that marker in the full logical string.
 
+Ranges can also ask native text layout to draw the covered text as an inline marker. This avoids React Native overlay measurement and keeps marker spacing, selection, and taps inside the native text view.
+
+```tsx
+<ReaderText
+  text="This sentence has a footnote. 1"
+  ranges={[
+    {
+      id: 'fn-1',
+      start: 30,
+      end: 31,
+      type: 'footnote',
+      presentation: 'marker',
+      markerStyle: {
+        backgroundColor: '#F4EFE7',
+        borderColor: '#D7C8B6',
+        textColor: '#4D3827',
+        fontScale: 0.72,
+        baselineOffset: 4,
+        horizontalPadding: 4,
+        verticalPadding: 1,
+        borderRadius: 4,
+        minWidth: 16,
+        minHeight: 16,
+      },
+    },
+  ]}
+  onRangePress={(range) => {
+    openFootnote(range.id);
+  }}
+/>
+```
+
+On Android, marker presentation is drawn with a native `ReplacementSpan`. On iOS, marker presentation is applied inside `UITextView` attributed text so the marker remains part of native text layout. The marker text remains in the logical string on both platforms, and offsets stay JavaScript-style UTF-16 offsets.
+
 ## Multilingual Segments
 
 Use `segments` when one paragraph needs per-language typography. Ranges and highlights apply to the concatenated logical text.

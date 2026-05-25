@@ -106,6 +106,7 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
     applyParagraphStyle(attributed)
     applyHighlights(attributed)
     applySegments(attributed)
+    applyMarkerRanges(attributed)
     textView.attributedText = attributed
     textView.isSelectable = selectable
     textView.accessibilityLabel = text
@@ -181,6 +182,25 @@ final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecognizerDeleg
       if let baselineOffset = number(profile["baselineOffset"]) {
         attributed.addAttribute(.baselineOffset, value: baselineOffset, range: range)
       }
+    }
+  }
+
+  private func applyMarkerRanges(_ attributed: NSMutableAttributedString) {
+    for range in normalizedRanges where range["presentation"] as? String == "marker" {
+      let markerRange = nsRange(range)
+      let style = range["markerStyle"] as? [String: Any] ?? [:]
+      let currentFont = attributed.attribute(.font, at: markerRange.location, effectiveRange: nil) as? UIFont ?? baseFont()
+      let markerFont = scaledFont(currentFont.withSize(currentFont.pointSize * (number(style["fontScale"]) ?? 0.72)))
+
+      attributed.addAttributes(
+        [
+          .font: markerFont,
+          .foregroundColor: color(style["textColor"]) ?? UIColor(red: 0.302, green: 0.22, blue: 0.153, alpha: 1),
+          .backgroundColor: color(style["backgroundColor"]) ?? UIColor(red: 0.957, green: 0.937, blue: 0.906, alpha: 1),
+          .baselineOffset: number(style["baselineOffset"]) ?? 4,
+        ],
+        range: markerRange
+      )
     }
   }
 

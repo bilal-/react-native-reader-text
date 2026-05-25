@@ -24,7 +24,22 @@ export type ReaderTextRange = {
   start: number;
   end: number;
   type?: string;
+  presentation?: 'plain' | 'marker';
+  markerStyle?: ReaderTextMarkerStyle;
   metadata?: Record<string, unknown>;
+};
+
+export type ReaderTextMarkerStyle = {
+  backgroundColor?: string;
+  borderColor?: string;
+  textColor?: string;
+  fontScale?: number;
+  baselineOffset?: number;
+  horizontalPadding?: number;
+  verticalPadding?: number;
+  borderRadius?: number;
+  minWidth?: number;
+  minHeight?: number;
 };
 
 export type ReaderTextSelection = {

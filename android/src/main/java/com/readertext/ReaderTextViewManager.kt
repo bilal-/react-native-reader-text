@@ -1,6 +1,9 @@
 package com.readertext
 
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -8,6 +11,7 @@ import android.text.TextPaint
 import android.text.style.BackgroundColorSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
+import android.text.style.ReplacementSpan
 import android.text.style.TypefaceSpan
 import android.util.TypedValue
 import android.view.ActionMode
@@ -210,6 +214,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
 
     applyHighlightSpans(builder)
     applySegmentSpans(builder)
+    applyMarkerSpans(builder)
     text = builder
   }
 
@@ -283,6 +288,24 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
         builder.setSpan(DipBaselineShiftSpan(it.toFloat()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       }
     }
+  }
+
+  private fun applyMarkerSpans(builder: SpannableStringBuilder) {
+    normalizedRanges
+      .filter { it.optString("presentation") == "marker" }
+      .forEach { range ->
+        val start = range.getInt("start")
+        val end = range.getInt("end")
+        builder.setSpan(
+          FootnoteMarkerSpan(
+            style = range.optMap("markerStyle"),
+            density = resources.displayMetrics.density,
+          ),
+          start,
+          end,
+          Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+      }
   }
 
   private fun segmentTypography(segment: ReadableMap): ReadableMap {
@@ -423,6 +446,91 @@ private class DipBaselineShiftSpan(private val dip: Float) : MetricAffectingSpan
   }
 }
 
+private class FootnoteMarkerSpan(
+  private val style: ReadableMap?,
+  private val density: Float,
+) : ReplacementSpan() {
+  private val horizontalPadding = dp(styleDouble("horizontalPadding") ?: 4.0)
+  private val verticalPadding = dp(styleDouble("verticalPadding") ?: 1.0)
+  private val borderRadius = dp(styleDouble("borderRadius") ?: 4.0)
+  private val minWidth = dp(styleDouble("minWidth") ?: 16.0)
+  private val minHeight = dp(styleDouble("minHeight") ?: 16.0)
+  private val baselineOffset = dp(styleDouble("baselineOffset") ?: 4.0)
+  private val fontScale = (styleDouble("fontScale") ?: 0.72).toFloat()
+  private val backgroundColor = parseColor(styleString("backgroundColor")) ?: Color.parseColor("#F4EFE7")
+  private val borderColor = parseColor(styleString("borderColor")) ?: Color.parseColor("#D7C8B6")
+  private val textColor = parseColor(styleString("textColor")) ?: Color.parseColor("#4D3827")
+
+  override fun getSize(
+    paint: Paint,
+    text: CharSequence,
+    start: Int,
+    end: Int,
+    fm: Paint.FontMetricsInt?,
+  ): Int {
+    val markerPaint = TextPaint(paint).apply { textSize *= fontScale }
+    val width = maxOf(markerPaint.measureText(text, start, end) + horizontalPadding * 2, minWidth)
+    val fontMetrics = markerPaint.fontMetricsInt
+    val height = maxOf((fontMetrics.descent - fontMetrics.ascent).toFloat() + verticalPadding * 2, minHeight)
+
+    if (fm != null) {
+      val extraTop = (height - (paint.fontMetricsInt.descent - paint.fontMetricsInt.ascent)).coerceAtLeast(0f)
+      fm.ascent = paint.fontMetricsInt.ascent - extraTop.roundToInt()
+      fm.descent = paint.fontMetricsInt.descent
+      fm.top = fm.ascent
+      fm.bottom = fm.descent
+    }
+
+    return width.roundToInt()
+  }
+
+  override fun draw(
+    canvas: Canvas,
+    text: CharSequence,
+    start: Int,
+    end: Int,
+    x: Float,
+    top: Int,
+    y: Int,
+    bottom: Int,
+    paint: Paint,
+  ) {
+    val markerPaint = TextPaint(paint).apply {
+      isAntiAlias = true
+      textSize *= fontScale
+    }
+    val textWidth = markerPaint.measureText(text, start, end)
+    val width = maxOf(textWidth + horizontalPadding * 2, minWidth)
+    val textMetrics = markerPaint.fontMetrics
+    val height = maxOf(textMetrics.descent - textMetrics.ascent + verticalPadding * 2, minHeight)
+    val markerBaseline = y - baselineOffset
+    val rectTop = markerBaseline + textMetrics.ascent - verticalPadding
+    val rect = RectF(x, rectTop, x + width, rectTop + height)
+
+    markerPaint.style = Paint.Style.FILL
+    markerPaint.color = backgroundColor
+    canvas.drawRoundRect(rect, borderRadius, borderRadius, markerPaint)
+
+    markerPaint.style = Paint.Style.STROKE
+    markerPaint.strokeWidth = maxOf(1f, density)
+    markerPaint.color = borderColor
+    canvas.drawRoundRect(rect, borderRadius, borderRadius, markerPaint)
+
+    markerPaint.style = Paint.Style.FILL
+    markerPaint.color = textColor
+    val textX = x + (width - textWidth) / 2
+    canvas.drawText(text, start, end, textX, markerBaseline, markerPaint)
+  }
+
+  private fun dp(value: Double): Float = (value * density).toFloat()
+
+  private fun styleString(key: String): String? =
+    if (style != null && style.hasKey(key) && !style.isNull(key)) style.getString(key) else null
+
+  private fun styleDouble(key: String): Double? =
+    if (style != null && style.hasKey(key) && !style.isNull(key)) style.getDouble(key) else null
+}
+
 private fun ReadableArray.toMapList(): List<ReadableMap> =
   (0 until size()).mapNotNull { getMap(it) }
 
@@ -438,6 +546,9 @@ private fun ReadableMap.optString(key: String): String? =
 
 private fun ReadableMap.optDouble(key: String): Double? =
   if (hasKey(key) && !isNull(key)) getDouble(key) else null
+
+private fun ReadableMap.optMap(key: String): ReadableMap? =
+  if (hasKey(key) && !isNull(key)) getMap(key) else null
 
 private fun parseColor(value: String?): Int? {
   if (value == null) return null

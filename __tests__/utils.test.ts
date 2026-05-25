@@ -53,12 +53,28 @@ describe('ReaderText utilities', () => {
     expect(
       normalizeRanges(
         [
-          { id: 'fn-1', start: 4, end: 5, type: 'footnote' },
+          {
+            id: 'fn-1',
+            start: 4,
+            end: 5,
+            type: 'footnote',
+            presentation: 'marker',
+            markerStyle: { minWidth: 16 },
+          },
           { id: 'bad', start: 6, end: 5 },
         ],
         8,
       ),
-    ).toEqual([{ id: 'fn-1', start: 4, end: 5, type: 'footnote' }]);
+    ).toEqual([
+      {
+        id: 'fn-1',
+        start: 4,
+        end: 5,
+        type: 'footnote',
+        presentation: 'marker',
+        markerStyle: { minWidth: 16 },
+      },
+    ]);
   });
 
   it('merges typography profiles with segment overrides', () => {

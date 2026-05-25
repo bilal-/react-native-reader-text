@@ -105,13 +105,14 @@ class ReaderTextViewManager : SimpleViewManager<ReaderTextView>(),
     view.allowReaderFontScaling = allowFontScaling
   }
 
-  override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> =
-    MapBuilder.builder<String, Any>()
-      .put("onSelection", MapBuilder.of("registrationName", "onSelection"))
-      .put("onMenuAction", MapBuilder.of("registrationName", "onMenuAction"))
-      .put("onRangePress", MapBuilder.of("registrationName", "onRangePress"))
-      .build()
-}
+	  override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> =
+	    MapBuilder.builder<String, Any>()
+	      .put("onSelection", MapBuilder.of("registrationName", "onSelection"))
+	      .put("onMenuAction", MapBuilder.of("registrationName", "onMenuAction"))
+	      .put("onRangePress", MapBuilder.of("registrationName", "onRangePress"))
+	      .build()
+	      .toMutableMap()
+	}
 
 class ReaderTextView(context: ThemedReactContext) : TextView(context) {
   var readerText: String = ""

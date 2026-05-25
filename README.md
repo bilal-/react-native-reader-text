@@ -275,3 +275,7 @@ The example demonstrates selectable text, custom menu actions, highlights, gener
 This project exists because high-quality text rendering is hard, especially for multilingual reading. Arabic, Urdu, Hebrew, English, and other mixed-direction content can expose platform differences that are difficult for one person to test completely.
 
 Contributions are welcome, especially around RTL/LTR behavior, Arabic and Urdu typography, selection edge cases, Expo compatibility, accessibility, Fabric/New Architecture support, documentation, examples, and platform-specific bug fixes.
+
+## Support
+
+If this library helps your reader app, you can support development at [buymeacoffee.com/bilaldev](https://buymeacoffee.com/bilaldev).

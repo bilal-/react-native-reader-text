@@ -38,6 +38,10 @@
   },
   "author": "dev.bilalahmad (Bilal Ahmad)",
   "license": "MIT",
+  "funding": {
+    "type": "buymeacoffee",
+    "url": "https://buymeacoffee.com/bilaldev"
+  },
   "bugs": {
     "url": "https://github.com/bilal-/react-native-reader-text/issues"
   },

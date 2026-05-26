@@ -42,8 +42,11 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   @objc public weak var eventDelegate: ReaderTextViewEventDelegate?
 
   fileprivate let textView = ReaderUITextView()
+  private static weak var activeSelectionOwner: ReaderTextView?
+  private static let clearSelectionNotification = Notification.Name("dev.bilalahmad.readertext.clearSelection")
   private var normalizedRanges: [[String: Any]] = []
   private var lastReportedContentSize: CGSize = .zero
+  private var lastNonEmptySelectedRange: NSRange?
 
   public override init(frame: CGRect) {
     super.init(frame: frame)
@@ -55,6 +58,10 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     setup()
   }
 
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
   public override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
@@ -63,7 +70,7 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
 
   fileprivate func emitMenuAction(index: Int) {
     guard index >= 0, index < menuItems.count else { return }
-    let range = textView.selectedRange
+    let range = activeSelectedRange()
     guard range.length > 0 else { return }
     let nsText = text as NSString
     guard range.location + range.length <= nsText.length else { return }
@@ -83,6 +90,7 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     ]
     onMenuAction?(payload)
     eventDelegate?.readerTextView(self, didTriggerMenuAction: payload)
+    clearSelection()
   }
 
   fileprivate func menuTitle(at index: Int) -> String {
@@ -93,9 +101,17 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
 
   public func textViewDidChangeSelection(_ textView: UITextView) {
     let range = textView.selectedRange
-    guard range.length > 0 else { return }
+    guard range.length > 0 else {
+      if ReaderTextView.activeSelectionOwner === self {
+        ReaderTextView.activeSelectionOwner = nil
+      }
+      lastNonEmptySelectedRange = nil
+      return
+    }
     let nsText = text as NSString
     guard range.location + range.length <= nsText.length else { return }
+    ReaderTextView.activeSelectionOwner = self
+    lastNonEmptySelectedRange = range
     let payload = selectionPayload(range: range)
     onSelection?(payload)
     eventDelegate?.readerTextView(self, didSelect: payload)
@@ -117,6 +133,13 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     tap.cancelsTouchesInView = false
     tap.delegate = self
     textView.addGestureRecognizer(tap)
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleClearSelectionNotification),
+      name: ReaderTextView.clearSelectionNotification,
+      object: nil
+    )
   }
 
   private func rebuildText() {
@@ -402,10 +425,17 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   }
 
   @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
-    guard gesture.state == .ended, !normalizedRanges.isEmpty else { return }
+    guard gesture.state == .ended else { return }
+    if let owner = ReaderTextView.activeSelectionOwner, owner !== self {
+      owner.clearSelection()
+    }
+    if textView.selectedRange.length > 0 {
+      clearSelection()
+      return
+    }
+    guard !normalizedRanges.isEmpty else { return }
     let point = gesture.location(in: textView)
     guard let offset = characterOffset(at: point) else { return }
-    guard textView.selectedRange.length == 0 else { return }
     guard let range = normalizedRanges.first(where: {
       rangeDictionary($0, contains: offset)
     }) else { return }
@@ -417,6 +447,38 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     ]
     onRangePress?(payload)
     eventDelegate?.readerTextView(self, didPressRange: payload)
+  }
+
+  @objc private func handleClearSelectionNotification() {
+    clearSelection()
+  }
+
+  private func activeSelectedRange() -> NSRange {
+    let current = textView.selectedRange
+    if current.length > 0 {
+      return current
+    }
+    return lastNonEmptySelectedRange ?? current
+  }
+
+  private func clearSelection() {
+    let selectedRange = textView.selectedRange
+    let collapseLocation: Int
+    if selectedRange.location != NSNotFound {
+      collapseLocation = selectedRange.location
+    } else if let cached = lastNonEmptySelectedRange {
+      collapseLocation = cached.location
+    } else {
+      collapseLocation = 0
+    }
+    let textLength = (text as NSString).length
+    let boundedLocation = max(0, min(collapseLocation, textLength))
+    textView.selectedRange = NSRange(location: boundedLocation, length: 0)
+    textView.resignFirstResponder()
+    lastNonEmptySelectedRange = nil
+    if ReaderTextView.activeSelectionOwner === self {
+      ReaderTextView.activeSelectionOwner = nil
+    }
   }
 
   private func characterOffset(at point: CGPoint) -> Int? {

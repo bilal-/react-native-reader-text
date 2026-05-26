@@ -262,11 +262,20 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   }
 
   private func typographyProfile(_ segment: [String: Any]) -> [String: Any] {
-    if let profile = segment["typography"] as? [String: Any] {
-      return profile
+    var profile: [String: Any] = [:]
+    if let lang = segment["lang"] as? String,
+       let langProfile = typography.first(where: { $0["lang"] as? String == lang }) {
+      profile.merge(langProfile) { _, segmentValue in segmentValue }
     }
-    guard let lang = segment["lang"] as? String else { return [:] }
-    return typography.first { $0["lang"] as? String == lang } ?? [:]
+    if let inlineProfile = segment["typography"] as? [String: Any] {
+      profile.merge(inlineProfile) { _, segmentValue in segmentValue }
+    }
+    for key in ["fontFamily", "color", "fontScale", "baselineOffset", "lineHeightMultiplier"] {
+      if let value = segment[key] {
+        profile[key] = value
+      }
+    }
+    return profile
   }
 
   private func baseFont() -> UIFont {
@@ -281,27 +290,30 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     }
 
     let aliases = [
-      "Roboto_300Light": "Roboto-Light",
-      "Roboto_400Regular": "Roboto-Regular",
-      "Roboto_400Regular_Italic": "Roboto-Italic",
-      "Roboto_500Medium": "Roboto-Medium",
-      "Roboto_700Bold": "Roboto-Bold",
-      "Roboto_700Bold_Italic": "Roboto-BoldItalic",
-      "Lateef_400Regular": "Lateef-Regular",
-      "Lateef_500Medium": "Lateef-Medium",
-      "Lateef_700Bold": "Lateef-Bold",
-      "JameelNooriNastaleeq": "JameelNooriNastaleeq",
-      "NooreHuda": "noorehuda",
-      "EBGaramond_400Regular": "EBGaramond-Regular",
-      "EBGaramond_400Regular_Italic": "EBGaramond-Italic",
-      "EBGaramond_500Medium": "EBGaramond-Medium",
-      "EBGaramond_600SemiBold": "EBGaramond-SemiBold",
-      "EBGaramond_700Bold": "EBGaramond-Bold",
+      "Roboto_300Light": ["Roboto-Light"],
+      "Roboto_400Regular": ["Roboto-Regular"],
+      "Roboto_400Regular_Italic": ["Roboto-Italic"],
+      "Roboto_500Medium": ["Roboto-Medium"],
+      "Roboto_700Bold": ["Roboto-Bold"],
+      "Roboto_700Bold_Italic": ["Roboto-BoldItalic"],
+      "Lateef_400Regular": ["Lateef-Regular", "Lateef"],
+      "Lateef_500Medium": ["Lateef-Medium"],
+      "Lateef_700Bold": ["Lateef-Bold"],
+      "JameelNooriNastaleeq": ["JameelNooriNastaleeq", "Jameel Noori Nastaleeq"],
+      "NooreHuda": ["noorehuda", "noorehuda Regular"],
+      "EBGaramond_400Regular": ["EBGaramond-Regular"],
+      "EBGaramond_400Regular_Italic": ["EBGaramond-Italic"],
+      "EBGaramond_500Medium": ["EBGaramond-Medium"],
+      "EBGaramond_600SemiBold": ["EBGaramond-SemiBold"],
+      "EBGaramond_700Bold": ["EBGaramond-Bold"],
     ]
 
-    if let resolvedName = aliases[requestedName],
-       let font = UIFont(name: resolvedName, size: size) {
-      return font
+    if let resolvedNames = aliases[requestedName] {
+      for resolvedName in resolvedNames {
+        if let font = UIFont(name: resolvedName, size: size) {
+          return font
+        }
+      }
     }
 
     return nil

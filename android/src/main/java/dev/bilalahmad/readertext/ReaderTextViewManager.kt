@@ -25,6 +25,7 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.common.ReactConstants
 import com.facebook.react.common.assets.ReactFontManager
@@ -371,11 +372,27 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
   }
 
   private fun segmentTypography(segment: ReadableMap): ReadableMap {
-    if (segment.hasKey("typography") && !segment.isNull("typography")) {
-      return segment.getMap("typography") ?: Arguments.createMap()
+    val profile = Arguments.createMap()
+    val lang = segment.optString("lang")
+    if (lang != null) {
+      typography?.toMapList()?.firstOrNull { it.optString("lang") == lang }?.let { langProfile ->
+        profile.merge(langProfile)
+      }
     }
-    val lang = segment.optString("lang") ?: return Arguments.createMap()
-    return typography?.toMapList()?.firstOrNull { it.optString("lang") == lang } ?: Arguments.createMap()
+    if (segment.hasKey("typography") && !segment.isNull("typography")) {
+      segment.getMap("typography")?.let { profile.merge(it) }
+    }
+    listOf("fontFamily", "color", "fontScale", "baselineOffset", "lineHeightMultiplier").forEach { key ->
+      if (segment.hasKey(key) && !segment.isNull(key)) {
+        when (segment.getType(key)) {
+          ReadableType.String -> profile.putString(key, segment.getString(key))
+          ReadableType.Number -> profile.putDouble(key, segment.getDouble(key))
+          ReadableType.Boolean -> profile.putBoolean(key, segment.getBoolean(key))
+          else -> Unit
+        }
+      }
+    }
+    return profile
   }
 
   private fun installSelectionMenu() {

@@ -221,7 +221,7 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
         currentFont = currentFont.withSize(currentFont.pointSize * fontScale)
       }
       if let family = profile["fontFamily"] as? String,
-         let familyFont = UIFont(name: family, size: currentFont.pointSize) {
+         let familyFont = font(named: family, size: currentFont.pointSize) {
         currentFont = familyFont
       }
       attributed.addAttribute(.font, value: scaledFont(currentFont), range: range)
@@ -241,16 +241,23 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
       let style = range["markerStyle"] as? [String: Any] ?? [:]
       let currentFont = attributed.attribute(.font, at: markerRange.location, effectiveRange: nil) as? UIFont ?? baseFont()
       let markerFont = scaledFont(currentFont.withSize(currentFont.pointSize * (number(style["fontScale"]) ?? 0.72)))
-
-      attributed.addAttributes(
-        [
-          .font: markerFont,
-          .foregroundColor: color(style["textColor"]) ?? UIColor(red: 0.302, green: 0.22, blue: 0.153, alpha: 1),
-          .backgroundColor: color(style["backgroundColor"]) ?? UIColor(red: 0.957, green: 0.937, blue: 0.906, alpha: 1),
-          .baselineOffset: number(style["baselineOffset"]) ?? 4,
-        ],
-        range: markerRange
+      let markerText = (attributed.string as NSString).substring(with: markerRange)
+      let attachment = markerAttachment(text: markerText, font: markerFont, style: style)
+      attributed.replaceCharacters(
+        in: NSRange(location: markerRange.location, length: 1),
+        with: NSAttributedString(attachment: attachment)
       )
+
+      if markerRange.length > 1 {
+        attributed.addAttributes(
+          [
+            .font: markerFont.withSize(0.1),
+            .foregroundColor: UIColor.clear,
+            .kern: -markerFont.pointSize * 0.5,
+          ],
+          range: NSRange(location: markerRange.location + 1, length: markerRange.length - 1)
+        )
+      }
     }
   }
 
@@ -265,7 +272,116 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   private func baseFont() -> UIFont {
     let fontSize = number(textStyle["fontSize"]) ?? 17
     let family = textStyle["fontFamily"] as? String
-    return family.flatMap { UIFont(name: $0, size: fontSize) } ?? UIFont.systemFont(ofSize: fontSize)
+    return family.flatMap { font(named: $0, size: fontSize) } ?? UIFont.systemFont(ofSize: fontSize)
+  }
+
+  private func font(named requestedName: String, size: CGFloat) -> UIFont? {
+    if let font = UIFont(name: requestedName, size: size) {
+      return font
+    }
+
+    let aliases = [
+      "Roboto_300Light": "Roboto-Light",
+      "Roboto_400Regular": "Roboto-Regular",
+      "Roboto_400Regular_Italic": "Roboto-Italic",
+      "Roboto_500Medium": "Roboto-Medium",
+      "Roboto_700Bold": "Roboto-Bold",
+      "Roboto_700Bold_Italic": "Roboto-BoldItalic",
+      "Lateef_400Regular": "Lateef-Regular",
+      "Lateef_500Medium": "Lateef-Medium",
+      "Lateef_700Bold": "Lateef-Bold",
+      "JameelNooriNastaleeq": "JameelNooriNastaleeq",
+      "NooreHuda": "noorehuda",
+      "EBGaramond_400Regular": "EBGaramond-Regular",
+      "EBGaramond_400Regular_Italic": "EBGaramond-Italic",
+      "EBGaramond_500Medium": "EBGaramond-Medium",
+      "EBGaramond_600SemiBold": "EBGaramond-SemiBold",
+      "EBGaramond_700Bold": "EBGaramond-Bold",
+    ]
+
+    if let resolvedName = aliases[requestedName],
+       let font = UIFont(name: resolvedName, size: size) {
+      return font
+    }
+
+    return nil
+  }
+
+  private func markerVisualRange(_ markerRange: NSRange, in string: NSString) -> NSRange {
+    var location = markerRange.location
+    var length = markerRange.length
+
+    if location > 0, isMarkerPaddingCharacter(string.character(at: location - 1)) {
+      location -= 1
+      length += 1
+    }
+
+    let upperBound = location + length
+    if upperBound < string.length, isMarkerPaddingCharacter(string.character(at: upperBound)) {
+      length += 1
+    }
+
+    return NSRange(location: location, length: length)
+  }
+
+  private func isMarkerPaddingCharacter(_ character: unichar) -> Bool {
+    switch character {
+    case 0x0020, 0x00A0, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005,
+         0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000:
+      return true
+    default:
+      return false
+    }
+  }
+
+  private func rangeDictionary(_ dictionary: [String: Any], contains offset: Int) -> Bool {
+    guard let start = dictionary["start"] as? Int, let end = dictionary["end"] as? Int else { return false }
+    if offset >= start && offset < end {
+      return true
+    }
+    guard dictionary["presentation"] as? String == "marker" else { return false }
+    let visualRange = markerVisualRange(NSRange(location: start, length: end - start), in: text as NSString)
+    return offset >= visualRange.location && offset < visualRange.location + visualRange.length
+  }
+
+  private func markerAttachment(text: String, font: UIFont, style: [String: Any]) -> NSTextAttachment {
+    let horizontalPadding = number(style["horizontalPadding"]) ?? 4
+    let verticalPadding = number(style["verticalPadding"]) ?? 1
+    let borderRadius = number(style["borderRadius"]) ?? 3
+    let textColor = color(style["textColor"]) ?? UIColor(red: 0.302, green: 0.22, blue: 0.153, alpha: 1)
+    let backgroundColor = color(style["backgroundColor"]) ?? UIColor(red: 0.957, green: 0.937, blue: 0.906, alpha: 1)
+    let textSize = (text as NSString).size(withAttributes: [.font: font])
+    let width = max(number(style["minWidth"]) ?? 0, ceil(textSize.width + horizontalPadding * 2))
+    let height = max(number(style["minHeight"]) ?? 0, ceil(textSize.height + verticalPadding * 2))
+    let size = CGSize(width: width, height: height)
+
+    let renderer = UIGraphicsImageRenderer(size: size)
+    let image = renderer.image { _ in
+      let rect = CGRect(origin: .zero, size: size)
+      backgroundColor.setFill()
+      UIBezierPath(roundedRect: rect, cornerRadius: borderRadius).fill()
+
+      let textRect = CGRect(
+        x: floor((width - textSize.width) / 2),
+        y: floor((height - textSize.height) / 2),
+        width: ceil(textSize.width),
+        height: ceil(textSize.height)
+      )
+      (text as NSString).draw(in: textRect, withAttributes: [
+        .font: font,
+        .foregroundColor: textColor,
+      ])
+    }
+
+    let attachment = NSTextAttachment()
+    attachment.image = image.withRenderingMode(.alwaysOriginal)
+    attachment.bounds = CGRect(
+      x: 0,
+      y: (font.capHeight - height) / 2,
+      width: width,
+      height: height
+    )
+    return attachment
   }
 
   private func scaledFont(_ font: UIFont) -> UIFont {
@@ -279,8 +395,7 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     guard let offset = characterOffset(at: point) else { return }
     guard textView.selectedRange.length == 0 else { return }
     guard let range = normalizedRanges.first(where: {
-      guard let start = $0["start"] as? Int, let end = $0["end"] as? Int else { return false }
-      return offset >= start && offset < end
+      rangeDictionary($0, contains: offset)
     }) else { return }
     let payload: [String: Any] = [
       "id": range["id"] as? String ?? "",

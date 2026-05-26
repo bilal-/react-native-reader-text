@@ -1,4 +1,4 @@
-import type { HostComponent, ViewProps } from 'react-native';
+import { Platform, requireNativeComponent, type HostComponent, type ViewProps } from 'react-native';
 import type {
   DirectEventHandler,
   Double,
@@ -119,6 +119,8 @@ export interface NativeProps extends ViewProps {
   onContentSizeChange?: DirectEventHandler<NativeContentSizeChangeEvent>;
 }
 
-export default codegenNativeComponent<NativeProps>(
-  'ReaderTextView',
-) as HostComponent<NativeProps>;
+const NativeReaderTextView = Platform.OS === 'android'
+  ? requireNativeComponent<NativeProps>('ReaderTextView')
+  : codegenNativeComponent<NativeProps>('ReaderTextView') as HostComponent<NativeProps>;
+
+export default NativeReaderTextView;

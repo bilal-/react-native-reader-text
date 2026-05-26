@@ -237,7 +237,7 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     applySegmentSpans(builder)
     applyMarkerSpans(builder)
     text = builder
-    highlightColor = Color.TRANSPARENT
+    highlightColor = Color.argb(96, 154, 132, 85)
     post { reportContentSizeIfNeeded() }
   }
 

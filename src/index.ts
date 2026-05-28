@@ -7,7 +7,9 @@ export {
   mergeTypographyProfile,
   normalizeHighlights,
   normalizeRanges,
+  normalizeSelectionExclusionRanges,
   normalizeSegments,
+  selectionWithExcludedRanges,
 } from './utils';
 export type {
   NativeReaderTextEvent,
@@ -19,6 +21,7 @@ export type {
   ReaderTextRange,
   ReaderTextSegment,
   ReaderTextSelection,
+  ReaderTextSelectionExclusionRange,
   ReaderTextSelectionAnchor,
   ReaderTextTypographyProfile,
 } from './types';

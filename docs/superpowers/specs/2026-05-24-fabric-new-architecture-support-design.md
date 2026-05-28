@@ -169,28 +169,34 @@ interface NativeProps extends ViewProps {
   textStyle?: NativeTextStyle;
   allowFontScaling?: WithDefault<boolean, true>;
   maxLineHeightMultiplier?: WithDefault<Double, 1>;
-  onSelection?: DirectEventHandler<Readonly<{
-    text: string;
-    start: Int32;
-    end: Int32;
-  }>>;
-  onMenuAction?: DirectEventHandler<Readonly<{
-    id: string;
-    title: string;
-    selectionText: string;
-    selectionStart: Int32;
-    selectionEnd: Int32;
-    anchorX: Double;
-    anchorY: Double;
-    anchorWidth: Double;
-    anchorHeight: Double;
-  }>>;
-  onRangePress?: DirectEventHandler<Readonly<{
-    id: string;
-    start: Int32;
-    end: Int32;
-    type?: string;
-  }>>;
+  onSelection?: DirectEventHandler<
+    Readonly<{
+      text: string;
+      start: Int32;
+      end: Int32;
+    }>
+  >;
+  onMenuAction?: DirectEventHandler<
+    Readonly<{
+      id: string;
+      title: string;
+      selectionText: string;
+      selectionStart: Int32;
+      selectionEnd: Int32;
+      anchorX: Double;
+      anchorY: Double;
+      anchorWidth: Double;
+      anchorHeight: Double;
+    }>
+  >;
+  onRangePress?: DirectEventHandler<
+    Readonly<{
+      id: string;
+      start: Int32;
+      end: Int32;
+      type?: string;
+    }>
+  >;
 }
 
 export default codegenNativeComponent<NativeProps>(
@@ -272,6 +278,7 @@ simple while preserving the public v1 shape.
   The marker text remains part of the logical string and the range covers that
   marker text. Native draws the covered text as a compact inline marker and
   keeps `onRangePress` tied to the same UTF-16 offsets.
+
 - Keep public events ergonomic while native events stay flat:
   - `onSelection({ text, start, end })`
   - `onMenuAction({ id, title, selection: { text, start, end }, anchor: { x, y, width, height } })`
@@ -431,8 +438,8 @@ Current build verification:
 - `RCT_NEW_ARCH_ENABLED=1 pod install` succeeds in the example app.
 - iOS example build succeeds with New Architecture enabled:
   `xcodebuild -workspace ReaderTextExample.xcworkspace -scheme ReaderTextExample
-  -configuration Debug -sdk iphonesimulator -destination 'platform=iOS
-  Simulator,name=iPhone 17 Pro' build`.
+-configuration Debug -sdk iphonesimulator -destination 'platform=iOS
+Simulator,name=iPhone 17 Pro' build`.
 - Android example build succeeds with New Architecture enabled:
   `./gradlew :react-native-reader-text:generateCodegenArtifactsFromSchema` and
   `./gradlew assembleDebug`.

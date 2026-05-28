@@ -13,12 +13,14 @@ import {
   type ReaderTextHighlight,
   type ReaderTextMenuActionEvent,
   type ReaderTextRange,
+  type ReaderTextSelectionExclusionRange,
 } from 'react-native-reader-text';
 
 type Paragraph = {
   id: string;
   text: string;
   ranges?: ReaderTextRange[];
+  selectionExclusionRanges?: ReaderTextSelectionExclusionRange[];
 };
 
 type SavedHighlight = ReaderTextHighlight & {
@@ -37,6 +39,12 @@ const paragraphs: Paragraph[] = [
   {
     id: 'p3',
     text: 'This paragraph has a footnote marker. 1',
+    selectionExclusionRanges: [
+      {
+        start: 'This paragraph has a footnote marker. '.length,
+        end: 'This paragraph has a footnote marker. 1'.length,
+      },
+    ],
     ranges: [
       {
         id: 'fn-1',
@@ -68,9 +76,18 @@ const paragraphs: Paragraph[] = [
 
 export default function App() {
   const [highlights, setHighlights] = useState<SavedHighlight[]>([
-    { id: 'initial-h1', paragraphId: 'p2', start: 0, end: 10, color: '#FFE58A' },
+    {
+      id: 'initial-h1',
+      paragraphId: 'p2',
+      start: 0,
+      end: 10,
+      color: '#FFE58A',
+    },
   ]);
-  const [lastAction, setLastAction] = useState('Select text to use the native menu.');
+  const [lastAction, setLastAction] = useState(
+    'Select text to use the native menu.',
+  );
+  const [clearSelectionSignal, setClearSelectionSignal] = useState(0);
 
   const menuItems = useMemo(
     () => [
@@ -81,7 +98,10 @@ export default function App() {
     [],
   );
 
-  function handleMenuAction(paragraphId: string, event: ReaderTextMenuActionEvent) {
+  function handleMenuAction(
+    paragraphId: string,
+    event: ReaderTextMenuActionEvent,
+  ) {
     setLastAction(`${event.title}: "${event.selection.text}"`);
 
     if (event.id === 'highlight') {
@@ -95,14 +115,21 @@ export default function App() {
           color: '#FFE58A',
         },
       ]);
+      setClearSelectionSignal((signal) => signal + 1);
     }
 
     if (event.id === 'note') {
-      Alert.alert('Note action', `App note UI would open near x=${Math.round(event.anchor.x)}.`);
+      Alert.alert(
+        'Note action',
+        `App note UI would open near x=${Math.round(event.anchor.x)}.`,
+      );
+      setClearSelectionSignal((signal) => signal + 1);
     }
 
     if (event.id === 'share') {
-      Share.share({ message: event.selection.text });
+      void Share.share({ message: event.selection.text }).finally(() => {
+        setClearSelectionSignal((signal) => signal + 1);
+      });
     }
   }
 
@@ -125,10 +152,16 @@ export default function App() {
               selectable
               baseDirection="auto"
               menuItems={menuItems}
+              clearSelectionSignal={clearSelectionSignal}
               typography={[
                 { lang: 'en', fontScale: 1, lineHeightMultiplier: 1.4 },
                 { lang: 'ar', fontScale: 1.15, lineHeightMultiplier: 1.65 },
-                { lang: 'ur', fontScale: 1.25, lineHeightMultiplier: 1.9, baselineOffset: -1 },
+                {
+                  lang: 'ur',
+                  fontScale: 1.25,
+                  lineHeightMultiplier: 1.9,
+                  baselineOffset: -1,
+                },
               ]}
               textStyle={styles.multilingualReader}
               onMenuAction={(event) => handleMenuAction('multilingual', event)}
@@ -138,7 +171,12 @@ export default function App() {
         renderItem={({ item }) => {
           const paragraphHighlights = highlights
             .filter((highlight) => highlight.paragraphId === item.id)
-            .map(({ paragraphId: _paragraphId, ...highlight }) => highlight);
+            .map((highlight) => ({
+              id: highlight.id,
+              start: highlight.start,
+              end: highlight.end,
+              color: highlight.color,
+            }));
 
           return (
             <View style={styles.paragraph}>
@@ -149,13 +187,16 @@ export default function App() {
                 menuItems={menuItems}
                 highlights={paragraphHighlights}
                 ranges={item.ranges}
+                selectionExclusionRanges={item.selectionExclusionRanges}
+                clearSelectionSignal={clearSelectionSignal}
                 baseDirection="auto"
                 textStyle={styles.reader}
                 onMenuAction={(event) => handleMenuAction(item.id, event)}
                 onRangePress={(range) => {
+                  const body = range.metadata?.body;
                   Alert.alert(
                     range.type === 'footnote' ? 'Footnote' : 'Range',
-                    String(range.metadata?.body ?? range.id),
+                    typeof body === 'string' ? body : range.id,
                   );
                 }}
               />

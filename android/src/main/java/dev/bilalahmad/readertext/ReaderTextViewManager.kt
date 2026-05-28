@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.text.Selection
+import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
@@ -108,6 +110,11 @@ class ReaderTextViewManager : SimpleViewManager<ReaderTextView>(),
     view.allowReaderFontScaling = allowFontScaling
   }
 
+  @ReactProp(name = "clearSelectionSignal", defaultInt = 0)
+  override fun setClearSelectionSignal(view: ReaderTextView, signal: Int) {
+    view.clearSelectionSignal = signal
+  }
+
   override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> =
     MapBuilder.builder<String, Any>()
       .put("onSelection", MapBuilder.of("registrationName", "onSelection"))
@@ -186,6 +193,14 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
       field = value
       applyTextStyle()
       rebuildText()
+    }
+
+  var clearSelectionSignal: Int = 0
+    set(value) {
+      if (field != value) {
+        field = value
+        clearSelection()
+      }
     }
 
   private var normalizedRanges: List<ReadableMap> = emptyList()
@@ -459,6 +474,16 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     event.putDouble("anchorWidth", anchor.getDouble("width"))
     event.putDouble("anchorHeight", anchor.getDouble("height"))
     sendEvent("onMenuAction", event)
+    clearSelection()
+  }
+
+  private fun clearSelection() {
+    val currentText = text
+    if (currentText is Spannable) {
+      val collapseAt = selectionStart.coerceIn(0, currentText.length)
+      Selection.setSelection(currentText, collapseAt, collapseAt)
+    }
+    clearFocus()
   }
 
   private fun emitRangePress(range: ReadableMap) {

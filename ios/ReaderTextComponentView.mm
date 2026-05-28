@@ -220,6 +220,7 @@ static NSDictionary *RCTReaderTextStyleDictionary(const ReaderTextViewTextStyleS
   _readerTextView.textStyle = RCTReaderTextStyleDictionary(newProps.textStyle);
   _readerTextView.maxLineHeightMultiplier = @(newProps.maxLineHeightMultiplier);
   _readerTextView.allowFontScaling = newProps.allowFontScaling;
+  _readerTextView.clearSelectionSignal = @(newProps.clearSelectionSignal);
 
   [super updateProps:props oldProps:oldProps];
 }

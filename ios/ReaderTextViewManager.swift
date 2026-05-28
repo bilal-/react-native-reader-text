@@ -35,6 +35,13 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   @objc public var textStyle: [String: Any] = [:] { didSet { rebuildText() } }
   @objc public var maxLineHeightMultiplier: NSNumber = 1 { didSet { rebuildText() } }
   @objc public var allowFontScaling: Bool = true { didSet { rebuildText() } }
+  @objc public var clearSelectionSignal: NSNumber = 0 {
+    didSet {
+      if clearSelectionSignal.intValue != oldValue.intValue {
+        clearSelection()
+      }
+    }
+  }
   @objc public var onSelection: RCTDirectEventBlock?
   @objc public var onMenuAction: RCTDirectEventBlock?
   @objc public var onRangePress: RCTDirectEventBlock?

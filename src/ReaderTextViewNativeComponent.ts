@@ -1,4 +1,4 @@
-import type { HostComponent, ViewProps } from 'react-native';
+import type { ViewProps } from 'react-native';
 import type {
   DirectEventHandler,
   Double,
@@ -113,12 +113,11 @@ export interface NativeProps extends ViewProps {
   textStyle?: NativeTextStyle;
   maxLineHeightMultiplier?: WithDefault<Double, 1>;
   allowFontScaling?: WithDefault<boolean, true>;
+  clearSelectionSignal?: WithDefault<Int32, 0>;
   onSelection?: DirectEventHandler<NativeSelectionEvent>;
   onMenuAction?: DirectEventHandler<NativeMenuActionEvent>;
   onRangePress?: DirectEventHandler<NativeRangePressEvent>;
   onContentSizeChange?: DirectEventHandler<NativeContentSizeChangeEvent>;
 }
 
-export default codegenNativeComponent<NativeProps>(
-  'ReaderTextView',
-) as HostComponent<NativeProps>;
+export default codegenNativeComponent<NativeProps>('ReaderTextView');

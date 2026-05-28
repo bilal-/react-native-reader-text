@@ -6,9 +6,11 @@ import {
   mergeTypographyProfile,
   normalizeHighlights,
   normalizeRanges,
+  normalizeSelectionExclusionRanges,
   normalizeSegments,
   rehydrateMenuAction,
   rehydrateRangePress,
+  selectionWithExcludedRanges,
   typographyProfileMap,
 } from '../src/utils';
 
@@ -80,6 +82,24 @@ describe('ReaderText utilities', () => {
     ]);
   });
 
+  it('normalizes selection exclusion ranges safely', () => {
+    expect(normalizeSelectionExclusionRanges(undefined, 8)).toEqual([]);
+    expect(
+      normalizeSelectionExclusionRanges(
+        [
+          { start: 6, end: 7 },
+          { start: 1, end: 3 },
+          { start: 9, end: 10 },
+          { start: 4, end: 4 },
+        ],
+        8,
+      ),
+    ).toEqual([
+      { start: 1, end: 3 },
+      { start: 6, end: 7 },
+    ]);
+  });
+
   it('merges typography profiles with segment overrides', () => {
     expect(
       mergeTypographyProfile(
@@ -97,7 +117,13 @@ describe('ReaderText utilities', () => {
   it('allows all segment typography overrides', () => {
     expect(
       mergeTypographyProfile(
-        { fontFamily: 'System', color: '#111111', fontScale: 1, lineHeightMultiplier: 1.4, baselineOffset: 0 },
+        {
+          fontFamily: 'System',
+          color: '#111111',
+          fontScale: 1,
+          lineHeightMultiplier: 1.4,
+          baselineOffset: 0,
+        },
         {
           text: 'text',
           fontFamily: 'Custom',
@@ -117,7 +143,9 @@ describe('ReaderText utilities', () => {
   });
 
   it('returns undefined for empty typography profiles', () => {
-    expect(mergeTypographyProfile(undefined, { text: 'plain' })).toBeUndefined();
+    expect(
+      mergeTypographyProfile(undefined, { text: 'plain' }),
+    ).toBeUndefined();
   });
 
   it('allows segment line height to override profile line height', () => {
@@ -148,7 +176,13 @@ describe('ReaderText utilities', () => {
       ),
     ).toEqual([
       { text: 'Read ', lang: 'en', start: 0, end: 5, typography: undefined },
-      { text: 'النص', lang: 'ar', start: 5, end: 9, typography: { lang: 'ar', fontScale: 1.2 } },
+      {
+        text: 'النص',
+        lang: 'ar',
+        start: 5,
+        end: 9,
+        typography: { lang: 'ar', fontScale: 1.2 },
+      },
     ]);
   });
 
@@ -159,19 +193,98 @@ describe('ReaderText utilities', () => {
   });
 
   it('returns selected text for valid ranges only', () => {
-    expect(getSelectedText('abcdef', 1, 4)).toEqual({ text: 'bcd', start: 1, end: 4 });
+    expect(getSelectedText('abcdef', 1, 4)).toEqual({
+      text: 'bcd',
+      start: 1,
+      end: 4,
+    });
     expect(getSelectedText('abcdef', 4, 99)).toBeNull();
+  });
+
+  it('omits excluded ranges from selected text without changing offsets', () => {
+    expect(
+      selectionWithExcludedRanges(
+        'Alpha 12 beta 34 gamma',
+        { text: 'Alpha 12 beta 34 gamma', start: 0, end: 22 },
+        [
+          { start: 6, end: 9 },
+          { start: 14, end: 17 },
+        ],
+      ),
+    ).toEqual({
+      text: 'Alpha beta gamma',
+      start: 0,
+      end: 22,
+    });
+  });
+
+  it('leaves selected text unchanged when there are no exclusion ranges', () => {
+    const selection = { text: 'selected', start: 2, end: 10 };
+    expect(selectionWithExcludedRanges('xxselectedyy', selection, [])).toBe(
+      selection,
+    );
+  });
+
+  it('clips exclusion ranges to the active selection', () => {
+    expect(
+      selectionWithExcludedRanges(
+        '0123456789',
+        { text: '234567', start: 2, end: 8 },
+        [
+          { start: 0, end: 3 },
+          { start: 5, end: 6 },
+          { start: 7, end: 9 },
+        ],
+      ),
+    ).toEqual({
+      text: '346',
+      start: 2,
+      end: 8,
+    });
+  });
+
+  it('ignores exclusion ranges outside the active selection', () => {
+    expect(
+      selectionWithExcludedRanges(
+        '0123456789',
+        { text: '3456', start: 3, end: 7 },
+        [
+          { start: 0, end: 2 },
+          { start: 8, end: 9 },
+        ],
+      ),
+    ).toEqual({
+      text: '3456',
+      start: 3,
+      end: 7,
+    });
   });
 
   it('computes the maximum line height multiplier', () => {
     expect(
       maxLineHeightMultiplier([
-        { text: 'a', start: 0, end: 1, typography: { lineHeightMultiplier: 1.3 } },
-        { text: 'b', start: 1, end: 2, typography: { lineHeightMultiplier: 1.8 } },
+        {
+          text: 'a',
+          start: 0,
+          end: 1,
+          typography: { lineHeightMultiplier: 1.3 },
+        },
+        {
+          text: 'b',
+          start: 1,
+          end: 2,
+          typography: { lineHeightMultiplier: 1.8 },
+        },
       ]),
     ).toBe(1.8);
-    expect(maxLineHeightMultiplier([{ text: 'a', start: 0, end: 1, lineHeightMultiplier: 1.6 }])).toBe(1.6);
-    expect(maxLineHeightMultiplier([{ text: 'a', start: 0, end: 1 }], 1.2)).toBe(1.2);
+    expect(
+      maxLineHeightMultiplier([
+        { text: 'a', start: 0, end: 1, lineHeightMultiplier: 1.6 },
+      ]),
+    ).toBe(1.6);
+    expect(
+      maxLineHeightMultiplier([{ text: 'a', start: 0, end: 1 }], 1.2),
+    ).toBe(1.2);
   });
 
   it('builds a language-keyed typography profile map', () => {
@@ -217,22 +330,22 @@ describe('ReaderText utilities', () => {
     };
 
     expect(
-      rehydrateRangePress(
-        { id: 'fn-1', start: 4, end: 5, type: 'footnote' },
-        [original],
-      ),
+      rehydrateRangePress({ id: 'fn-1', start: 4, end: 5, type: 'footnote' }, [
+        original,
+      ]),
     ).toBe(original);
-    expect(rehydrateRangePress({ id: 'missing', start: 1, end: 2 }, [])).toEqual({
+    expect(
+      rehydrateRangePress({ id: 'missing', start: 1, end: 2 }, []),
+    ).toEqual({
       id: 'missing',
       start: 1,
       end: 2,
       type: undefined,
     });
     expect(
-      rehydrateRangePress(
-        { id: 'link-1', start: 1, end: 2 },
-        [{ id: 'link-1', start: 1, end: 2, metadata: { href: '#' } }],
-      ),
+      rehydrateRangePress({ id: 'link-1', start: 1, end: 2 }, [
+        { id: 'link-1', start: 1, end: 2, metadata: { href: '#' } },
+      ]),
     ).toEqual({ id: 'link-1', start: 1, end: 2, metadata: { href: '#' } });
   });
 });

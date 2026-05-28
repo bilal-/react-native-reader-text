@@ -134,12 +134,7 @@ A developer should be able to install the package and write:
 import { ReaderText } from 'react-native-reader-text';
 
 export function Example() {
-  return (
-    <ReaderText
-      text="Long press to select this text."
-      selectable
-    />
-  );
+  return <ReaderText text="Long press to select this text." selectable />;
 }
 ```
 
@@ -152,10 +147,7 @@ Advanced capabilities should be optional.
 ### Basic Usage
 
 ```tsx
-<ReaderText
-  text="Some selectable book text"
-  selectable
-/>
+<ReaderText text="Some selectable book text" selectable />
 ```
 
 ### Custom Menu Actions
@@ -456,7 +448,7 @@ onMenuAction({
     width: 160,
     height: 24,
   },
-})
+});
 ```
 
 The native default copy action should ideally remain available unless explicitly disabled in a future API.
@@ -478,9 +470,7 @@ For v1, keep menu behavior simple:
 Highlights should be passed as logical ranges:
 
 ```ts
-[
-  { id: 'h1', start: 10, end: 35, color: '#FFE58A' }
-]
+[{ id: 'h1', start: 10, end: 35, color: '#FFE58A' }];
 ```
 
 Native behavior:
@@ -580,7 +570,7 @@ Use a reader size or base font size and apply language-specific multipliers.
 Example:
 
 ```ts
-actualFontSize = baseFontSize * languageFontScale
+actualFontSize = baseFontSize * languageFontScale;
 ```
 
 ### Line Height Strategy
@@ -623,7 +613,7 @@ baseDirection?: 'auto' | 'ltr' | 'rtl'
 Default:
 
 ```ts
-baseDirection="auto"
+baseDirection = 'auto';
 ```
 
 Native mapping:
@@ -824,12 +814,7 @@ If this library helps your reader, study app, document app, or annotation workfl
 import { ReaderText } from 'react-native-reader-text';
 
 export default function App() {
-  return (
-    <ReaderText
-      text="Long press to select this text."
-      selectable
-    />
-  );
+  return <ReaderText text="Long press to select this text." selectable />;
 }
 ```
 
@@ -869,9 +854,7 @@ export default function App() {
 ```tsx
 <ReaderText
   text={paragraph.text}
-  highlights={[
-    { id: 'h1', start: 12, end: 48, color: '#FFE58A' },
-  ]}
+  highlights={[{ id: 'h1', start: 12, end: 48, color: '#FFE58A' }]}
 />
 ```
 
@@ -1030,19 +1013,19 @@ Automated tests can initially focus on JS utilities:
 For first public release, implement only:
 
 ```ts
-text
-segments
-selectable
-menuItems
-highlights
-ranges
-typography
-baseDirection
-style
-textStyle
-onSelection
-onMenuAction
-onRangePress
+text;
+segments;
+selectable;
+menuItems;
+highlights;
+ranges;
+typography;
+baseDirection;
+style;
+textStyle;
+onSelection;
+onMenuAction;
+onRangePress;
 ```
 
 Avoid adding too many props before real users provide feedback.

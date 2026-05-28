@@ -4,7 +4,7 @@ import type {
   ReaderTextRange,
   ReaderTextSegment,
   ReaderTextSelection,
-  ReaderTextSelectionAnchor,
+  ReaderTextSelectionExclusionRange,
   ReaderTextTypographyProfile,
   NativeReaderTextMenuActionEvent,
   NativeReaderTextRangePressEvent,
@@ -16,7 +16,10 @@ export type NormalizedSegment = ReaderTextSegment & {
   typography?: Partial<ReaderTextTypographyProfile>;
 };
 
-export function buildLogicalText(text?: string, segments?: ReaderTextSegment[]): string {
+export function buildLogicalText(
+  text?: string,
+  segments?: ReaderTextSegment[],
+): string {
   if (segments && segments.length > 0) {
     return segments.map((segment) => segment.text).join('');
   }
@@ -24,7 +27,10 @@ export function buildLogicalText(text?: string, segments?: ReaderTextSegment[]):
   return text ?? '';
 }
 
-export function isValidRange(range: { start: number; end: number }, textLength: number): boolean {
+export function isValidRange(
+  range: { start: number; end: number },
+  textLength: number,
+): boolean {
   return (
     Number.isInteger(range.start) &&
     Number.isInteger(range.end) &&
@@ -52,15 +58,29 @@ export function normalizeRanges(
   return ranges.filter((range) => isValidRange(range, textLength));
 }
 
+export function normalizeSelectionExclusionRanges(
+  ranges: ReaderTextSelectionExclusionRange[] | undefined,
+  textLength: number,
+): ReaderTextSelectionExclusionRange[] {
+  if (!ranges?.length) return [];
+
+  return ranges
+    .filter((range) => isValidRange(range, textLength))
+    .sort((a, b) => a.start - b.start);
+}
+
 export function typographyProfileMap(
   typography: ReaderTextTypographyProfile[] | undefined,
 ): Record<string, ReaderTextTypographyProfile> {
   if (!typography?.length) return {};
 
-  return typography.reduce<Record<string, ReaderTextTypographyProfile>>((profiles, profile) => {
-    profiles[profile.lang] = profile;
-    return profiles;
-  }, {});
+  return typography.reduce<Record<string, ReaderTextTypographyProfile>>(
+    (profiles, profile) => {
+      profiles[profile.lang] = profile;
+      return profiles;
+    },
+    {},
+  );
 }
 
 export function mergeTypographyProfile(
@@ -77,7 +97,8 @@ export function mergeTypographyProfile(
   if (segment?.lineHeightMultiplier !== undefined) {
     merged.lineHeightMultiplier = segment.lineHeightMultiplier;
   }
-  if (segment?.baselineOffset !== undefined) merged.baselineOffset = segment.baselineOffset;
+  if (segment?.baselineOffset !== undefined)
+    merged.baselineOffset = segment.baselineOffset;
 
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
@@ -103,12 +124,19 @@ export function normalizeSegments(
       ...segment,
       start,
       end,
-      typography: mergeTypographyProfile(segment.lang ? profiles[segment.lang] : undefined, segment),
+      typography: mergeTypographyProfile(
+        segment.lang ? profiles[segment.lang] : undefined,
+        segment,
+      ),
     };
   });
 }
 
-export function getSelectedText(text: string, start: number, end: number): ReaderTextSelection | null {
+export function getSelectedText(
+  text: string,
+  start: number,
+  end: number,
+): ReaderTextSelection | null {
   if (!isValidRange({ start, end }, text.length)) return null;
 
   return {
@@ -118,12 +146,43 @@ export function getSelectedText(text: string, start: number, end: number): Reade
   };
 }
 
+export function selectionWithExcludedRanges(
+  text: string,
+  selection: ReaderTextSelection,
+  exclusionRanges: ReaderTextSelectionExclusionRange[],
+): ReaderTextSelection {
+  if (!exclusionRanges.length) return selection;
+
+  let cursor = selection.start;
+  let selectedText = '';
+
+  for (const range of exclusionRanges) {
+    const start = Math.max(selection.start, range.start);
+    const end = Math.min(selection.end, range.end);
+    if (end <= cursor || start >= selection.end) continue;
+    if (start > cursor) selectedText += text.slice(cursor, start);
+    cursor = Math.max(cursor, end);
+  }
+
+  if (cursor < selection.end) {
+    selectedText += text.slice(cursor, selection.end);
+  }
+
+  return {
+    ...selection,
+    text: selectedText,
+  };
+}
+
 export function maxLineHeightMultiplier(
   segments: NormalizedSegment[],
   fallback = 1,
 ): number {
   return segments.reduce((max, segment) => {
-    const multiplier = segment.typography?.lineHeightMultiplier ?? segment.lineHeightMultiplier ?? fallback;
+    const multiplier =
+      segment.typography?.lineHeightMultiplier ??
+      segment.lineHeightMultiplier ??
+      fallback;
     return Math.max(max, multiplier);
   }, fallback);
 }

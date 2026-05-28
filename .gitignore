@@ -1,6 +1,7 @@
 node_modules/
 lib/
 coverage/
+.beads/
 android/build/
 android/.gradle/
 ios/Pods/

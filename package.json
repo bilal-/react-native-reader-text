@@ -8,11 +8,13 @@
   "react-native": "src/index.ts",
   "source": "src/index.ts",
   "files": [
-    "src",
-    "lib",
-    "android",
-    "ios",
+    "src/**/*",
+    "lib/**/*",
+    "android/build.gradle",
+    "android/src/**/*",
+    "ios/**/*.{h,m,mm,swift}",
     "react-native-reader-text.podspec",
+    "react-native.config.js",
     "README.md",
     "LICENSE"
   ],

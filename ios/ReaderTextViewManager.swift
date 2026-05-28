@@ -27,7 +27,12 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   @objc public var text: String = "" { didSet { rebuildText() } }
   @objc public var segments: [[String: Any]] = [] { didSet { rebuildText() } }
   @objc public var selectable: Bool = true { didSet { textView.isSelectable = selectable } }
-  @objc public var menuItems: [[String: Any]] = [] { didSet { textView.menuItemCount = menuItems.count } }
+  @objc public var menuItems: [[String: Any]] = [] {
+    didSet {
+      textView.menuItemCount = menuItems.count
+      textView.installLegacyMenuItems()
+    }
+  }
   @objc public var highlights: [[String: Any]] = [] { didSet { rebuildText() } }
   @objc public var ranges: [[String: Any]] = [] { didSet { rebuildText() } }
   @objc public var typography: [[String: Any]] = [] { didSet { rebuildText() } }
@@ -35,6 +40,13 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
   @objc public var textStyle: [String: Any] = [:] { didSet { rebuildText() } }
   @objc public var maxLineHeightMultiplier: NSNumber = 1 { didSet { rebuildText() } }
   @objc public var allowFontScaling: Bool = true { didSet { rebuildText() } }
+  @objc public var clearSelectionSignal: NSNumber = 0 {
+    didSet {
+      if clearSelectionSignal.intValue != oldValue.intValue {
+        clearSelection()
+      }
+    }
+  }
   @objc public var onSelection: RCTDirectEventBlock?
   @objc public var onMenuAction: RCTDirectEventBlock?
   @objc public var onRangePress: RCTDirectEventBlock?
@@ -99,6 +111,12 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     return item["title"] as? String ?? item["id"] as? String ?? ""
   }
 
+  fileprivate func menuIdentifier(at index: Int) -> String {
+    guard index >= 0, index < menuItems.count else { return "" }
+    let item = menuItems[index]
+    return item["id"] as? String ?? item["title"] as? String ?? ""
+  }
+
   public func textViewDidChangeSelection(_ textView: UITextView) {
     let range = textView.selectedRange
     guard range.length > 0 else {
@@ -157,6 +175,7 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     textView.isSelectable = selectable
     textView.accessibilityLabel = text
     textView.menuItemCount = menuItems.count
+    textView.installLegacyMenuItems()
     setNeedsLayout()
     DispatchQueue.main.async { [weak self] in
       self?.reportContentSizeIfNeeded()
@@ -522,20 +541,203 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
 final class ReaderUITextView: UITextView {
   weak var owner: ReaderTextView?
   var menuItemCount = 0
+  private static var didInstallEditMenuSwizzle = false
+
+  override init(frame: CGRect, textContainer: NSTextContainer?) {
+    super.init(frame: frame, textContainer: textContainer)
+    Self.installEditMenuSwizzleOnce()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    Self.installEditMenuSwizzleOnce()
+  }
 
   override func buildMenu(with builder: any UIMenuBuilder) {
     super.buildMenu(with: builder)
     guard menuItemCount > 0 else { return }
 
+    if #available(iOS 17.0, *) {
+      builder.remove(menu: .autoFill)
+      builder.remove(menu: .format)
+      builder.remove(menu: .lookup)
+      builder.remove(menu: .replace)
+      builder.remove(menu: .share)
+      builder.remove(menu: .spelling)
+      builder.remove(menu: .substitutions)
+      builder.remove(menu: .transformations)
+      builder.remove(menu: .speech)
+      builder.remove(menu: .learn)
+    }
+  }
+
+  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+    if let index = Self.legacyMenuIndex(for: action) {
+      return index < menuItemCount && selectedRange.length > 0
+    }
+
+    if action == #selector(copy(_:)) {
+      return super.canPerformAction(action, withSender: sender)
+    }
+
+    return super.canPerformAction(action, withSender: sender)
+  }
+
+  fileprivate func installLegacyMenuItems() {
+    guard menuItemCount > 0 else { return }
+    UIMenuController.shared.menuItems = (0..<min(menuItemCount, 8)).map { index in
+      UIMenuItem(title: owner?.menuTitle(at: index) ?? "", action: Self.legacyMenuSelector(for: index))
+    }
+  }
+
+  @objc func readerTextMenuAction0(_ sender: Any?) { owner?.emitMenuAction(index: 0) }
+  @objc func readerTextMenuAction1(_ sender: Any?) { owner?.emitMenuAction(index: 1) }
+  @objc func readerTextMenuAction2(_ sender: Any?) { owner?.emitMenuAction(index: 2) }
+  @objc func readerTextMenuAction3(_ sender: Any?) { owner?.emitMenuAction(index: 3) }
+  @objc func readerTextMenuAction4(_ sender: Any?) { owner?.emitMenuAction(index: 4) }
+  @objc func readerTextMenuAction5(_ sender: Any?) { owner?.emitMenuAction(index: 5) }
+  @objc func readerTextMenuAction6(_ sender: Any?) { owner?.emitMenuAction(index: 6) }
+  @objc func readerTextMenuAction7(_ sender: Any?) { owner?.emitMenuAction(index: 7) }
+
+  private static func installEditMenuSwizzleOnce() {
+    guard !didInstallEditMenuSwizzle else { return }
+    didInstallEditMenuSwizzle = true
+    guard #available(iOS 16.0, *) else { return }
+
+    let cls: AnyClass = UITextView.self
+    let originalSel = NSSelectorFromString("editMenuInteraction:menuFor:suggestedActions:")
+    let swizzledSel = #selector(UITextView.readerText_editMenuInteraction(_:menuFor:suggestedActions:))
+
+    guard
+      let originalMethod = class_getInstanceMethod(cls, originalSel),
+      let swizzledMethod = class_getInstanceMethod(cls, swizzledSel)
+    else { return }
+
+    let didAdd = class_addMethod(
+      cls,
+      originalSel,
+      method_getImplementation(swizzledMethod),
+      method_getTypeEncoding(swizzledMethod)
+    )
+
+    if didAdd {
+      class_replaceMethod(
+        cls,
+        swizzledSel,
+        method_getImplementation(originalMethod),
+        method_getTypeEncoding(originalMethod)
+      )
+    } else {
+      method_exchangeImplementations(originalMethod, swizzledMethod)
+    }
+  }
+
+  @available(iOS 16.0, *)
+  fileprivate func readerTextMenu(suggestedActions: [UIMenuElement]) -> UIMenu {
     let actions = (0..<min(menuItemCount, 8)).map { index in
-      UIAction(title: owner?.menuTitle(at: index) ?? "") { [weak self] _ in
+      UIAction(
+        title: owner?.menuTitle(at: index) ?? "",
+        image: Self.menuImage(for: owner?.menuIdentifier(at: index))
+      ) { [weak self] _ in
         self?.owner?.emitMenuAction(index: index)
       }
     }
 
-    builder.insertChild(UIMenu(title: "", options: .displayInline, children: actions), atStartOfMenu: .edit)
+    return UIMenu(children: actions + Self.filteredSystemActions(suggestedActions))
   }
 
+  @available(iOS 16.0, *)
+  fileprivate static func filteredSystemActions(_ elements: [UIMenuElement]) -> [UIMenuElement] {
+    elements.compactMap { element -> UIMenuElement? in
+      if let menu = element as? UIMenu {
+        let identifier = menu.identifier.rawValue.lowercased()
+        let title = menu.title.lowercased()
+        let blockedMenus = [
+          "autofill", "fill",
+          "format", "formatting",
+          "lookup", "look up",
+          "translate",
+          "share",
+          "replace",
+        ]
+        if blockedMenus.contains(where: { identifier.contains($0) || title == $0 }) {
+          return nil
+        }
+        let children = filteredSystemActions(menu.children)
+        return children.isEmpty ? nil : menu.replacingChildren(children)
+      }
+
+      if let action = element as? UIAction {
+        return action.title.lowercased() == "copy" ? element : nil
+      }
+
+      if element is UIDeferredMenuElement {
+        return nil
+      }
+
+      return nil
+    }
+  }
+
+  fileprivate static func menuImage(for identifier: String?) -> UIImage? {
+    switch identifier {
+    case "highlight":
+      return UIImage(systemName: "highlighter")
+    case "note":
+      return UIImage(systemName: "square.and.pencil")
+    case "share":
+      return UIImage(systemName: "square.and.arrow.up")
+    default:
+      return nil
+    }
+  }
+
+  private static func legacyMenuSelector(for index: Int) -> Selector {
+    switch index {
+    case 0: return #selector(ReaderUITextView.readerTextMenuAction0(_:))
+    case 1: return #selector(ReaderUITextView.readerTextMenuAction1(_:))
+    case 2: return #selector(ReaderUITextView.readerTextMenuAction2(_:))
+    case 3: return #selector(ReaderUITextView.readerTextMenuAction3(_:))
+    case 4: return #selector(ReaderUITextView.readerTextMenuAction4(_:))
+    case 5: return #selector(ReaderUITextView.readerTextMenuAction5(_:))
+    case 6: return #selector(ReaderUITextView.readerTextMenuAction6(_:))
+    default: return #selector(ReaderUITextView.readerTextMenuAction7(_:))
+    }
+  }
+
+  private static func legacyMenuIndex(for selector: Selector) -> Int? {
+    switch selector {
+    case #selector(ReaderUITextView.readerTextMenuAction0(_:)): return 0
+    case #selector(ReaderUITextView.readerTextMenuAction1(_:)): return 1
+    case #selector(ReaderUITextView.readerTextMenuAction2(_:)): return 2
+    case #selector(ReaderUITextView.readerTextMenuAction3(_:)): return 3
+    case #selector(ReaderUITextView.readerTextMenuAction4(_:)): return 4
+    case #selector(ReaderUITextView.readerTextMenuAction5(_:)): return 5
+    case #selector(ReaderUITextView.readerTextMenuAction6(_:)): return 6
+    case #selector(ReaderUITextView.readerTextMenuAction7(_:)): return 7
+    default: return nil
+    }
+  }
+
+}
+
+extension UITextView {
+  @available(iOS 16.0, *)
+  @objc func readerText_editMenuInteraction(
+    _ interaction: UIEditMenuInteraction,
+    menuFor configuration: UIEditMenuConfiguration,
+    suggestedActions: [UIMenuElement]
+  ) -> UIMenu? {
+    if let readerTextView = self as? ReaderUITextView, readerTextView.menuItemCount > 0 {
+      return readerTextView.readerTextMenu(suggestedActions: suggestedActions)
+    }
+
+    return readerText_editMenuInteraction(
+      interaction,
+      menuFor: configuration,
+      suggestedActions: suggestedActions
+    )
+  }
 }
 
 private func validRange(_ dictionary: [String: Any], length: Int) -> Bool {

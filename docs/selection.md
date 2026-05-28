@@ -12,6 +12,8 @@
 
 Offsets are based on the concatenated logical text. For `segments`, concatenate every segment's `text` in order before applying offsets.
 
+Use `selectionExclusionRanges` for logical text that should stay in layout and offset calculations, but should be removed from reported `selection.text`. `selection.start` and `selection.end` remain the original logical UTF-16 offsets.
+
 The native selection menu can include custom app-provided items:
 
 ```tsx
@@ -22,6 +24,8 @@ menuItems={[
 ```
 
 When a menu item is tapped, `onMenuAction` receives the item identity, selection, and a best-effort window-coordinate anchor rectangle. Use the anchor for app-owned popovers such as color pickers or note editors.
+
+If an app-owned popover or action should dismiss the native selection, pass a numeric `clearSelectionSignal` to `ReaderText` and increment it whenever the selection should clear.
 
 Platform menu ordering and default actions are not guaranteed to match exactly.
 

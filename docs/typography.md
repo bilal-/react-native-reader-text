@@ -12,7 +12,12 @@
   typography={[
     { lang: 'en', fontScale: 1.0, lineHeightMultiplier: 1.35 },
     { lang: 'ar', fontScale: 1.15, lineHeightMultiplier: 1.55 },
-    { lang: 'ur', fontScale: 1.25, lineHeightMultiplier: 1.9, baselineOffset: -1 },
+    {
+      lang: 'ur',
+      fontScale: 1.25,
+      lineHeightMultiplier: 1.9,
+      baselineOffset: -1,
+    },
   ]}
 />
 ```

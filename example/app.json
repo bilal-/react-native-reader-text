@@ -3,7 +3,7 @@
     "name": "ReaderText Example",
     "slug": "reader-text-example",
     "scheme": "readertextexample",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "newArchEnabled": false,
     "ios": {

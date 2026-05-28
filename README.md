@@ -66,12 +66,7 @@ The library owns the native text surface:
 import { ReaderText } from 'react-native-reader-text';
 
 export default function App() {
-  return (
-    <ReaderText
-      text="Long press to select this text."
-      selectable
-    />
-  );
+  return <ReaderText text="Long press to select this text." selectable />;
 }
 ```
 
@@ -106,6 +101,34 @@ The library adds app-provided items to the native selection menu and reports wha
 
 `anchor` is a best-effort window-coordinate rectangle for the selected text. Use it to position your own popover. If native layout cannot provide a useful rectangle, the values may be zero.
 
+## Selection Text Exclusions
+
+Use `selectionExclusionRanges` when part of the logical text should remain in layout and range offsets, but should not appear in reported selected text. This is useful for inline markers, reference numbers, or other app-owned control text.
+
+`selection.start` and `selection.end` remain the original logical UTF-16 offsets. Only `selection.text` is filtered.
+
+```tsx
+<ReaderText
+  text="This sentence has a note. 1"
+  selectionExclusionRanges={[{ start: 26, end: 27 }]}
+  onMenuAction={({ selection }) => {
+    // selection.text excludes the marker range when selected across it.
+  }}
+/>
+```
+
+## Clearing Selection
+
+If your app opens its own popover after a menu action, pass a numeric `clearSelectionSignal` and increment it when the popover closes or the action completes. Each `ReaderText` view clears any active native selection when the value changes.
+
+```tsx
+const [clearSelectionSignal, setClearSelectionSignal] = React.useState(0);
+
+<ReaderText text={chapterText} clearSelectionSignal={clearSelectionSignal} />;
+
+setClearSelectionSignal((signal) => signal + 1);
+```
+
 ## Highlights
 
 Highlights are logical UTF-16 ranges into the rendered text.
@@ -115,9 +138,7 @@ Highlight colors accept CSS-style hex strings such as `#FFE58A` and `#FFE58ACC`.
 ```tsx
 <ReaderText
   text={paragraph.text}
-  highlights={[
-    { id: 'h1', start: 12, end: 48, color: '#FFE58A' },
-  ]}
+  highlights={[{ id: 'h1', start: 12, end: 48, color: '#FFE58A' }]}
 />
 ```
 
@@ -142,9 +163,7 @@ Footnotes are app-owned. Include marker text in your content and pass a generic 
 ```tsx
 <ReaderText
   text="This sentence has a footnote. 1"
-  ranges={[
-    { id: 'fn-1', start: 30, end: 31, type: 'footnote' },
-  ]}
+  ranges={[{ id: 'fn-1', start: 30, end: 31, type: 'footnote' }]}
   onRangePress={(range) => {
     openFootnote(range.id);
   }}
@@ -204,7 +223,12 @@ Use `segments` when one paragraph needs per-language typography. Ranges and high
   typography={[
     { lang: 'en', fontScale: 1.0, lineHeightMultiplier: 1.35 },
     { lang: 'ar', fontScale: 1.15, lineHeightMultiplier: 1.55 },
-    { lang: 'ur', fontScale: 1.25, lineHeightMultiplier: 1.9, baselineOffset: -1 },
+    {
+      lang: 'ur',
+      fontScale: 1.25,
+      lineHeightMultiplier: 1.9,
+      baselineOffset: -1,
+    },
   ]}
 />
 ```

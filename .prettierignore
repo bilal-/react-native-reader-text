@@ -1,0 +1,8 @@
+android/build/
+coverage/
+example/android/
+example/ios/
+example/node_modules/
+ios/Pods/
+lib/
+node_modules/

@@ -5,9 +5,7 @@ Highlights are native background spans over logical UTF-16 ranges.
 ```tsx
 <ReaderText
   text={text}
-  highlights={[
-    { id: 'h1', start: 10, end: 30, color: '#FFE58A' },
-  ]}
+  highlights={[{ id: 'h1', start: 10, end: 30, color: '#FFE58A' }]}
 />
 ```
 

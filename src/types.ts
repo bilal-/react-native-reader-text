@@ -30,6 +30,11 @@ export type ReaderTextRange = {
   metadata?: Record<string, unknown>;
 };
 
+export type ReaderTextSelectionExclusionRange = {
+  start: number;
+  end: number;
+};
+
 export type ReaderTextMarkerStyle = {
   backgroundColor?: string;
   borderColor?: string;
@@ -85,11 +90,13 @@ export type ReaderTextProps = {
   menuItems?: ReaderTextMenuItem[];
   highlights?: ReaderTextHighlight[];
   ranges?: ReaderTextRange[];
+  selectionExclusionRanges?: ReaderTextSelectionExclusionRange[];
   typography?: ReaderTextTypographyProfile[];
   baseDirection?: 'auto' | 'ltr' | 'rtl';
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   allowFontScaling?: boolean;
+  clearSelectionSignal?: number;
   testID?: string;
   onSelection?: (selection: ReaderTextSelection) => void;
   onMenuAction?: (event: ReaderTextMenuActionEvent) => void;

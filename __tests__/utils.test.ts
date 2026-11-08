@@ -1,5 +1,6 @@
 import {
   buildLogicalText,
+  estimateContentHeight,
   getSelectedText,
   isValidRange,
   maxLineHeightMultiplier,
@@ -347,5 +348,17 @@ describe('ReaderText utilities', () => {
         { id: 'link-1', start: 1, end: 2, metadata: { href: '#' } },
       ]),
     ).toEqual({ id: 'link-1', start: 1, end: 2, metadata: { href: '#' } });
+  });
+
+  it('scales the height estimate with the system font scale', () => {
+    const text = 'word '.repeat(300);
+    const style = { fontSize: 17, lineHeight: 27 };
+    const base = estimateContentHeight(text, style, 402, 1, 1);
+    const large = estimateContentHeight(text, style, 402, 1, 3);
+    // Three times the glyph width means about three times the lines, each
+    // three times taller. The native measurement is rejected above twice the
+    // estimate, so a flat estimate clips long paragraphs at large text sizes.
+    expect(large).toBeGreaterThan(base * 8);
+    expect(large).toBeLessThan(base * 10);
   });
 });

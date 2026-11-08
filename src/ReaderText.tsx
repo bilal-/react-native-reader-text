@@ -1,9 +1,10 @@
 import React from 'react';
-import { Dimensions, StyleSheet } from 'react-native';
+import { Dimensions, PixelRatio, StyleSheet } from 'react-native';
 import { NativeReaderTextView } from './NativeReaderTextView';
 import type { ReaderTextProps } from './types';
 import {
   buildLogicalText,
+  estimateContentHeight,
   normalizeHighlights,
   normalizeRanges,
   normalizeSelectionExclusionRanges,
@@ -14,42 +15,6 @@ import {
   selectionWithExcludedRanges,
 } from './utils';
 
-function numericStyleValue(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? value
-    : undefined;
-}
-
-function estimateContentHeight(
-  text: string,
-  textStyle: Record<string, unknown>,
-  width: number,
-  lineHeightMultiplier: number,
-): number {
-  if (!text) return 0;
-  const fontSize = numericStyleValue(textStyle.fontSize) ?? 16;
-  const lineHeight =
-    numericStyleValue(textStyle.lineHeight) ??
-    fontSize * Math.max(lineHeightMultiplier, 1.2);
-  const availableWidth = Math.max(width - 48, 120);
-  const hasArabicScript = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/.test(
-    text,
-  );
-  const averageGlyphWidth = fontSize * (hasArabicScript ? 0.5 : 0.42);
-  const charsPerLine = Math.max(
-    8,
-    Math.floor(availableWidth / averageGlyphWidth),
-  );
-  const lines = text
-    .split('\n')
-    .reduce(
-      (total, line) =>
-        total + Math.max(1, Math.ceil(line.length / charsPerLine)),
-      0,
-    );
-  return Math.ceil(lines * lineHeight + 2);
-}
-
 export function ReaderText(props: ReaderTextProps) {
   return <ReaderTextMeasured {...props} />;
 }
@@ -58,6 +23,7 @@ type ReaderTextMeasuredState = {
   measuredHeight?: number;
   measuredText?: string;
   measuredWidth?: number;
+  measuredFontScale?: number;
 };
 
 class ReaderTextMeasured extends React.PureComponent<
@@ -88,6 +54,7 @@ class ReaderTextMeasured extends React.PureComponent<
       onContentSizeChange,
     } = this.props;
     const width = Dimensions.get('window').width;
+    const fontScale = allowFontScaling ? PixelRatio.getFontScale() : 1;
     const logicalText = buildLogicalText(text, segments);
     const normalizedSegments = normalizeSegments(
       logicalText,
@@ -114,10 +81,12 @@ class ReaderTextMeasured extends React.PureComponent<
       nativeTextStyle,
       width,
       paragraphLineHeightMultiplier,
+      fontScale,
     );
     const measuredHeight =
       this.state.measuredText === logicalText &&
-      this.state.measuredWidth === width
+      this.state.measuredWidth === width &&
+      this.state.measuredFontScale === fontScale
         ? this.state.measuredHeight
         : undefined;
 
@@ -189,11 +158,13 @@ class ReaderTextMeasured extends React.PureComponent<
             nextHeight > 0 &&
             (current.measuredText !== logicalText ||
               current.measuredWidth !== width ||
+              current.measuredFontScale !== fontScale ||
               Math.abs((current.measuredHeight ?? 0) - nextHeight) > 1)
               ? {
                   measuredHeight: nextHeight,
                   measuredText: logicalText,
                   measuredWidth: width,
+                  measuredFontScale: fontScale,
                 }
               : null,
           );

@@ -226,3 +226,44 @@ export function rehydrateRangePress(
     }
   );
 }
+
+function numericStyleValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+export function estimateContentHeight(
+  text: string,
+  textStyle: Record<string, unknown>,
+  width: number,
+  lineHeightMultiplier: number,
+  fontScale: number,
+): number {
+  if (!text) return 0;
+  // The native view scales glyphs and line height with the system text size
+  // (Dynamic Type / font scale), so the estimate must too. Real height grows
+  // roughly with the square of the scale: wider glyphs mean more lines, and
+  // each line is taller.
+  const fontSize = (numericStyleValue(textStyle.fontSize) ?? 16) * fontScale;
+  const lineHeight =
+    (numericStyleValue(textStyle.lineHeight) ?? 0) * fontScale ||
+    fontSize * Math.max(lineHeightMultiplier, 1.2);
+  const availableWidth = Math.max(width - 48, 120);
+  const hasArabicScript = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/.test(
+    text,
+  );
+  const averageGlyphWidth = fontSize * (hasArabicScript ? 0.5 : 0.42);
+  const charsPerLine = Math.max(
+    8,
+    Math.floor(availableWidth / averageGlyphWidth),
+  );
+  const lines = text
+    .split('\n')
+    .reduce(
+      (total, line) =>
+        total + Math.max(1, Math.ceil(line.length / charsPerLine)),
+      0,
+    );
+  return Math.ceil(lines * lineHeight + 2);
+}

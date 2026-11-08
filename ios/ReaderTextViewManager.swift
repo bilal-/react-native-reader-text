@@ -227,7 +227,12 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
       textView.textAlignment = .natural
     }
     let lineHeightMultiplier = max(CGFloat(maxLineHeightMultiplier.doubleValue), 1)
-    if let lineHeight = number(textStyle["lineHeight"]) {
+    if let fixedLineHeight = number(textStyle["lineHeight"]) {
+      // Fonts are scaled by UIFontMetrics, so a fixed line height must be too;
+      // otherwise larger text sizes draw lines on top of each other.
+      let lineHeight = allowFontScaling
+        ? UIFontMetrics.default.scaledValue(for: fixedLineHeight)
+        : fixedLineHeight
       style.minimumLineHeight = lineHeight
       style.maximumLineHeight = lineHeight
     } else if lineHeightMultiplier > 1 {

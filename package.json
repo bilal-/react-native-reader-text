@@ -1,6 +1,6 @@
 {
   "name": "react-native-reader-text",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Native-quality selectable text for React Native book readers, study apps, and multilingual reading experiences.",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",

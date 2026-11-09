@@ -176,6 +176,10 @@ public final class ReaderTextView: UIView, UITextViewDelegate, UIGestureRecogniz
     textView.accessibilityLabel = text
     textView.menuItemCount = menuItems.count
     textView.installLegacyMenuItems()
+    // React keys its measurement to this content, and Fabric reuses views for
+    // other paragraphs, so always report the size of new content, even when
+    // it matches the size reported for the previous content.
+    lastReportedContentSize = .zero
     setNeedsLayout()
     DispatchQueue.main.async { [weak self] in
       self?.reportContentSizeIfNeeded()

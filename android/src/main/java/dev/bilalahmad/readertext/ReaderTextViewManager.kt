@@ -253,6 +253,10 @@ class ReaderTextView(context: ThemedReactContext) : TextView(context) {
     applyMarkerSpans(builder)
     text = builder
     highlightColor = Color.argb(96, 154, 132, 85)
+    // React keys its measurement to this content, so always report the size
+    // of new content, even when it matches the previous content's size.
+    lastContentWidth = -1
+    lastContentHeight = -1
     post { reportContentSizeIfNeeded() }
   }
 
